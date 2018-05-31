@@ -7,7 +7,7 @@ Q: What are the broad geographic variations in CAPE and shear associated with to
 
 Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable better explains worst-case outbreak-level tornado energy?
 
-Why is this important? Outbreaks represent the most concentrated risk for damage and casualties.
+Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
 
 This analysis is done at the scale of outbreaks rather than at regional or local scales. 
 
