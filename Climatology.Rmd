@@ -1,0 +1,425 @@
+Spatial analysis of environmental factors related to tornado outbreaks
+======================================================================
+
+## Electronic Journal of Severe Storms Meteorology
+
+Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
+
+Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable better explains worst-case outbreak-level tornado energy?
+
+Why is this important? Outbreaks represent the most concentrated risk for damage and casualties.
+
+This analysis is done at the scale of outbreaks rather than at regional or local scales. 
+
+This code uses the SPC tornado data set.
+
+Set working directory and load packages.
+```{r}
+library(tidyverse)
+library(lubridate)
+library(sf)
+library(tmap)
+library(USAboundaries)
+```
+
+Download the tornado data. Source: Storm Prediction Center (SPC) http://www.spc.noaa.gov/gis/svrgis/. 
+```{r, eval=TRUE}
+if(!file.exists("torn")){ 
+  download.file("http://www.spc.noaa.gov/gis/svrgis/zipped/tornado.zip",
+                "tornado.zip", mode = "wb")
+  unzip("tornado.zip")
+  }
+```
+
+Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day column by subtracting 6 hours from local time (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
+```{r}
+Tor.sfdf <- sf::st_read(dsn = "torn", 
+                      layer = "torn", 
+                      stringsAsFactors = FALSE)
+
+Tor.sfdf <- Tor.sfdf %>%
+  filter(yr >= 1994, mag != -9) %>%
+  mutate(DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
+         cDateTime = DateTime - as.difftime(6, unit = "hours"),
+         eDate = as.Date(DateTime) + 1, # next day for 00z data
+         cDate = as.Date(cDateTime),
+         Hour = hour(DateTime),
+         Year = year(DateTime),
+         Length = len * 1609.34,
+         Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
+         Width = wid * .9144,
+         Width = ifelse(Width == 0, min(Width[Width > 0]), Width), #takes care of zero width
+         Width = ifelse(Year >= 1995, Width * pi/4, Width), #takes care of change: avg to max
+         cas = inj + fat,
+         AreaPath = Length * Width,
+         Ma = factor(month.abb[mo], levels = month.abb[1:12])) %>%
+  sf::st_sf()
+```
+
+The geometry type is `LINESTRING`. Each tornado track is a single line. 
+
+Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3 sec gusts on the operational EF Scale (Table 2-1 of NRC2007).
+
+$E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},$ where $A_p$ is the area of the path, $\rho$ is area density [1 kg/m^3]  $v_j$ is the midpoint wind speed for each rating, and $w_j$ is the corresponding fraction of path area by EF rating. With no upper bound on the EF5 wind speeds, the midpoint wind speed is set at 97 m~s$^{-1}$ (7.5 m~s$^{-1}$ above the threshold wind speed consistent with the EF4 midpoint speed relative to its threshold)
+```{r}
+perc <- c(1, 0, 0, 0, 0, 0, 
+         .772, .228, 0, 0, 0, 0,
+         .616, .268, .115, 0, 0, 0,
+         .529, .271, .133, .067, 0, 0,
+         .543, .238, .131, .056, .032, 0,
+         .538, .223, .119, .07, .033, .017)
+percM <- matrix(perc, ncol = 6, byrow = TRUE)
+threshW <- c(29.06, 38.45, 49.62, 60.8, 74.21, 89.41)
+midptW <- c(diff(threshW)/2 + threshW[-length(threshW)], threshW[length(threshW)] + 7.5)
+ef <- Tor.sfdf$mag + 1
+EW3 <- numeric()
+for(i in 1:length(ef)) EW3[i] = midptW^3 %*% percM[ef[i], ]
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(ED = EW3 * AreaPath)
+```
+
+Determine the centroid point of each track. We create a simple feature object from the `st_centroid()` function. 
+```{r}
+TorP.sfdf <- st_centroid(Tor.sfdf)
+TorP.sfdf$geometry[1]
+```
+
+Every thing is the same except the geometry type is `POINT`. This is reflected in the column `geometry`.
+
+Determine tornadoes close to each another in space and time. We start by extracting the coordinates of the centroids as a N by 2 matrix of numbers, where N is the number of unique tornadoes. We also extract the date-time as a vector of class `POSIXct`.
+```{r}
+space <- st_coordinates(TorP.sfdf)
+time <- Tor.sfdf$DateTime
+```
+
+Next we compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. We divide the spatial distance by 10 so that the values are comparable with the time 'distance' based on the assumption of 10 meters every second for the average speed of a storm system generating the tornadoes. Distance from NYC to Denver 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday events. For analysis we might want to consider each day in the multiday outbreak separately. As we increase the value of the divisor the cluster areas will get larger.
+```{r}
+ds <- dist(space) / 10
+dt <- dist(time)
+dst <- ds + dt
+```
+
+Distances are saved as an object of class `dist` containing a vector of length `r N * (N-1)/2`, which is the number of unique point pairs.
+
+Next we group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own outbreak and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado outbreaks) until there is a single large outbreak.
+
+The single linkage method (`method = "single"`) is closely related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here our weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
+
+To extract an outbreak number we use the `cutree()` function that cuts the tree into tornado outbreaks where the tornadoes in each outbreak are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller outbreaks (fewer tornadoes per outbreak).
+```{r}
+stime <- proc.time()
+tree <- hclust(dst, method = "single")
+outbreakNumber <- as.integer(cutree(tree, h = 100000))
+proc.time() - stime
+```
+
+  user  system elapsed 
+ 15.852   1.193  17.186 
+
+Compare with DBSCAN algorithm.
+```{r, eval=FALSE}
+library(dbscan)
+stime <- proc.time()
+outbreakNumber2 <- dbscan(dst, eps = 100000, minPts = 1)$cluster
+proc.time() - stime
+```
+
+   user  system elapsed 
+119.500  42.834 173.344 
+
+Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
+```{r}
+Tor.sfdf$outbreakNumber <- outbreakNumber
+Tor.sfdf$ID <- paste0(outbreakNumber, "-", Tor.sfdf$date)
+Out.sfdf <- Tor.sfdf %>%
+  group_by(outbreakNumber) %>%
+  summarize(Year = first(Year),
+            Month = first(mo),
+            FirstDate = first(date),
+            LastDate = last(date),
+            Name = paste(FirstDate, "to", LastDate),
+            FirstcDate = first(cDate),
+            LastcDate = last(cDate),
+            ncD = n_distinct(cDate),
+            nT = n(),
+            n0 = sum(mag == 0),
+            n1 = sum(mag == 1),
+            n2 = sum(mag == 2),
+            n3 = sum(mag == 3),
+            n4 = sum(mag == 4),
+            n5 = sum(mag == 5),
+            OutbreakTotalED = sum(ED),
+            Name2 = paste(round(OutbreakTotalED/10^12), "TW"),
+            maxEF = max(mag),
+            nD = n_distinct(date),
+            StartTime = first(DateTime),
+            EndTime = last(DateTime),
+            Duration = difftime(EndTime, StartTime, units = "secs")) %>%
+  filter(nT >= 30)
+Out.sfdf$TotalPathLength <- st_length(Out.sfdf)
+```
+
+Make some tables: Top 10 by number of tornadoes, energy dissipation, and duration.
+```{r}
+Out.sfdf %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
+
+Out.sfdf %>%
+  top_n(n = 10, wt = OutbreakTotalED) %>%
+  arrange(desc(OutbreakTotalED))
+
+Out.sfdf %>%
+  top_n(n = 10, wt = Duration) %>%
+  arrange(desc(Duration))
+
+Out.sfdf %>%
+  top_n(n = 10, wt = nD) %>%
+  arrange(desc(nD))
+```
+
+Map the tracks of the top 10 outbreaks by energy dissipation. First select the top 12 outbreaks. Then create a simple features data frame using only the tornadoes in this outbreak by filtering on outbreak number.
+```{r}
+df <- as.data.frame(Out.sfdf) %>%
+  top_n(n = 12, wt = OutbreakTotalED)
+
+sfdf <- Tor.sfdf %>%
+   filter(outbreakNumber %in% df$outbreakNumber) %>%
+   mutate(EF = factor(mag))
+
+sfdf2 <- left_join(sfdf, df, by = "outbreakNumber") %>%
+  arrange(desc(OutbreakTotalED))
+```
+
+Get state borders and use the `tm_shape()` function.
+```{r}
+sts <- state.name[!state.name %in% c("Alaska", "Hawaii")]
+stateBorders <- us_states(states = sts)
+
+tm_shape(sfdf2) +
+  tm_facets(by = "Name", ncol = 3)  +
+  tm_lines(col = "EF", lwd = 4, palette = "Reds", n = 6) +
+  tm_credits(text = df$Name2, position = c("left", "bottom"), bg.color = "white") +
+tm_shape(stateBorders) + 
+  tm_borders(col = "grey") +
+#  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.outside = TRUE)
+```
+
+Distribution of the number of days.
+```{r}
+dfnD <- as.data.frame(Out.sfdf) %>%
+  arrange(desc(nD))
+
+table(dfnD$nD)
+```
+
+Frequency by month of the start day of multi-day outbreaks of at least 4, 5, and 6 days in length.
+```{r}
+as.data.frame(Out.sfdf) %>%
+  filter(nD >= 4) %>%
+  count(Month) %>%
+  mutate(prop = prop.table(n))
+
+as.data.frame(Out.sfdf) %>%
+  count(Month, nD) %>%
+  mutate(prop = prop.table(n))
+
+```
+
+Outbreak days. Filter individual tornadoes to remove tornadoes not in large outbreaks. Group by outbreak number and convective dates. Remove outbreak days with fewer than 10 tornadoes.
+```{r}
+OutDays.sfdf <- Tor.sfdf %>%
+  filter(outbreakNumber %in% Out.sfdf$outbreakNumber) %>%
+  group_by(outbreakNumber, cDate) %>%
+  summarize(nT = n(),
+            OutbreakDayTotalED = sum(ED),
+            OutbreakDayMaxED = max(ED),
+            OutbreakDayMeanED = mean(ED),
+            eDate = first(eDate)) %>%
+  filter(nT >= 10) %>%
+  mutate(Year = year(eDate),
+         Mo = month(eDate),
+         Month = format(eDate, "%m"), # this is needed to preserve the leading zeros
+         Day = format(eDate, "%d"))
+```
+
+Table the number of days per outbreak. Also look at the day counts by year and month.
+```{r}
+table(table(OutDays.sfdf$outbreakNumber))
+
+table(OutDays.sfdf$Year)
+table(OutDays.sfdf$Month)
+```
+
+Individual tornado days within outbreaks.
+```{r}
+OutDays.sfdf %>%
+  top_n(n = 10, nT) %>%
+  arrange(desc(nT))
+```
+
+Plot the centroid for each outbreak day and size the aesthetic by the number of tornadoes.
+```{r}
+outbreakDayCentroids <- st_centroid(OutDays.sfdf)
+outbreakDayCentroids$nT <- OutDays.sfdf$nT
+
+tm_shape(outbreakDayCentroids) +
+  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
+tm_shape(stateBorders) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75)
+```
+
+Outbreak day centers do not have an obvious population bias.
+
+Estimate various spatial statistics on the outbreak days.
+```{r}
+library(spatstat)
+library(rgeos)
+library(maptools)
+
+n <- dim(OutDays.sfdf)[1] # number of outbreak days
+```
+
+Loop over all outbreak days.  See Rspatialcourse_CMIS_PDF Standard.pdf for interpretations of kappa, mu, and sigma. Kappa is the mean intensity of the inhomogeneous parent process and mu is the mean number of offsprings.
+```{r}
+Area <- numeric()
+Intensity <- numeric()
+Kappa <- numeric()
+Scale <- numeric()
+Mu <- numeric()
+
+for(i in 1:n){
+ print(i)
+ sfdf <- OutDays.sfdf[i, ]
+ sldf <- as(sfdf, "Spatial")
+ hull <- gConvexHull(sldf)
+ 
+ Area <- c(Area, gArea(hull)/10^6)  # Outbreak day area in square kilometers.
+ 
+ T.psp <- as.psp(sldf)
+ W <- as.owin(hull)
+ T.psp <- T.psp[W]
+ T.ppp <- endpoints.psp(T.psp, which = "first")
+ T.ppp2 = rescale(T.ppp, s = 1000, unitname = "km")
+ 
+ model <- kppm(T.ppp2, trend = ~ 1, clusters = "Thomas")
+ Mu <- c(Mu, summary(model)$mu)
+ Kappa <- c(Kappa, summary(model)$clustpar[1])
+ Scale <- c(Scale, summary(model)$clustpar[2])
+ Intensity <- c(Intensity, intensity(T.ppp2))
+}
+
+OutDays.sfdf$Area <- Area
+OutDays.sfdf$Intensity <- Intensity
+OutDays.sfdf$Mu <- Mu
+OutDays.sfdf$Kappa <- Kappa
+OutDays.sfdf$Scale <- Scale
+```
+
+Tables/graphs
+```{r}
+OutDays.sfdf %>%
+  top_n(n = 10, "Scale") %>%
+  arrange(desc(Scale))
+
+OutDays.sfdf %>%
+  group_by(Year) %>%
+  summarize(avgInt = mean(Intensity),
+            avgMu = mean(Mu),
+            avgArea = mean(Area),
+            avgKappa = mean(Kappa),
+            avgScale = mean(Scale)) %>%
+  ggplot(., aes(x = Year, y = avgScale)) +
+    geom_point() +
+    geom_smooth()
+```
+
+Get environmental data at 18Z (2p local) on the convective day. Try 00z on day after convective day (`eDate`). Also try this site https://rda.ucar.edu/datasets/ds608.0/
+```{r}
+library(lubridate)
+df <- as.data.frame(OutDays.sfdf) %>%
+  mutate(YrMo = paste0(Year, Month),
+         YrMoDa = paste0(YrMo, Day),
+         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_0000_000.grb"),
+         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2))
+```
+
+Download grib files
+```{r}
+for(i in 1:337){
+  download.file(df$slug[i], paste0("NARRdata/OutbreakDay", i, ".grb"), mode = "wb")
+}
+```
+
+Read grib files as rasters and extract corresponding HLCY and CAPE. Start by getting the convex hull around the tracks and transforming the coordinate reference system to match that of the raster grids.
+```{r}
+OutDaysHulls.sfdf <- st_convex_hull(OutDays.sfdf)
+OutDaysHulls.sfdf <- st_transform(OutDaysHulls.sfdf, crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs") # To match the crs of the grb rasters
+```
+
+Then loop over all outbreak days extracting the average CAPE and HLCY within the hulls.
+```{r}
+library(raster)
+aCAPE <- numeric()
+aHLCY <- numeric()
+aCIN <- numeric()
+aLFTX <- numeric()
+for(i in 1:337){
+ print(i)
+ 
+ rb <- brick(paste0("NARRdata/OutbreakDay", i, ".grb"))
+ CAPE.rl <- raster(rb, layer = 375)
+ HLCY.rl <- raster(rb, layer = 323)
+ CIN.rl <- raster(rb, layer = 376)
+ LFTX.rl <- raster(rb, layer = 314)
+ 
+ aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
+ aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
+ aCIN <- c(aCIN, mean(raster::extract(CIN.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
+ aLFTX <- c(aLFTX, mean(raster::extract(LFTX.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
+
+}
+```
+
+
+Model the relationships
+```{r}
+sfdf <- OutDaysHulls.sfdf[1:337, ]
+sfdf$aCAPE <- aCAPE
+sfdf$aHLCY <- aHLCY
+sfdf$aCIN <- aCIN
+sfdf$aLFTX <- aLFTX
+```
+
+```{r}
+sfdf %>%
+  group_by(Mo) %>%
+  summarize(mED = mean(OutbreakDayTotalED)/10^12,
+            nT = sum(nT))
+```
+
+Models
+```{r}
+library(lme4)
+model0 <- lmer(log(OutbreakDayTotalED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model0)
+
+model0a <- lmer(log(OutbreakDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), weights = nT, data = sfdf)
+summary(model0a)
+
+model1 <- lmer(log(OutbreakDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
+summary(model1)
+
+model2 <- lmer(log(OutbreakDayMaxEd) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model2)
+
+model4 <- lmer(log(nT) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model4)
+```
+
+```{r}
+summary(lm(log(OutbreakDayTotalED) ~ aHLCY + aCAPE + aCIN, data = sfdf[sfdf$Mo == 4, ]))
+```
