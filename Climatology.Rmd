@@ -386,6 +386,14 @@ OutDaysHulls.sfdf <- st_convex_hull(OutDays.sfdf)
 OutDaysHulls.sfdf <- st_transform(OutDaysHulls.sfdf, crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs") # To match the crs of the grb rasters
 ```
 
+Remove these years and cDate because no NARR data is available. 
+```{r}
+OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
+  filter(Year != 2015, 
+         Year != 2016,
+         cDate != "2014-10-13")
+```
+
 Then loop over all outbreak days extracting the average CAPE and HLCY within the hulls.
 ```{r}
 library(raster)
