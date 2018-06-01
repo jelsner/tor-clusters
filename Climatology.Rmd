@@ -1,10 +1,9 @@
 Spatial Analysis of Environmental Factors Related to Tornado Outbreaks
 ======================================================================
 
-## Research for Submission to: Electronic Journal of Severe Storms Meteorology
+Research for Submission to: **Electronic Journal of Severe Storms Meteorology**
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
-
 Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable better explains worst-case outbreak-level tornado energy?
 
 Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
@@ -12,8 +11,6 @@ Why is this important? Outbreaks represent the most concentrated large-scale ris
 This analysis is done at the scale of outbreaks rather than at regional or local scales. 
 
 This code uses the Storm Prediction Center's tornado data set.
-
-Let's collaborate.
 
 Set working directory and load packages.
 ```{r}
