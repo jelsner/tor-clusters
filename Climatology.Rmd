@@ -13,6 +13,8 @@ This analysis is done at the scale of outbreaks rather than at regional or local
 
 This code uses the Storm Prediction Center's tornado data set.
 
+Let's collaborate.
+
 Set working directory and load packages.
 ```{r}
 library(tidyverse)
