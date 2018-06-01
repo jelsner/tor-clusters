@@ -364,6 +364,14 @@ df <- as.data.frame(OutDays.sfdf) %>%
          slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2))
 ```
 
+Remove 2015 and 2016 years!
+```{r}
+df <- df %>%
+  filter(Yr != 2015, 
+         Yr != 2016,
+         cDate != "2014-10-13")
+```
+
 Download grib files
 ```{r}
 for(i in 1:337){
