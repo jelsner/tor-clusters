@@ -1,7 +1,7 @@
 Spatial analysis of environmental factors related to tornado outbreaks
 ======================================================================
 
-## Electronic Journal of Severe Storms Meteorology
+## Research for Submission to: Electronic Journal of Severe Storms Meteorology
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
 
