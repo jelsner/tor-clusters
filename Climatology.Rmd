@@ -55,13 +55,6 @@ Tor.sfdf <- Tor.sfdf %>%
   sf::st_sf()
 ```
 
-Create unique ID for each outbreak and outbreak day. To do this combine the outbreak number and convective day with no spaces or symbols. (EX: outbreaknumber: 276; cDate: 1994-03-01 --> ID: 27619940301)
-
-```{r}
-Tor.sfdf <- Tor.sfdf %>%
-  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
-```
-
 The geometry type is `LINESTRING`. Each tornado track is a single line. 
 
 Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3 sec gusts on the operational EF Scale (Table 2-1 of NRC2007).
@@ -133,10 +126,16 @@ proc.time() - stime
    user  system elapsed 
 119.500  42.834 173.344 
 
-Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
+Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. Create unique ID for each outbreak and outbreak day. To do this combine the outbreak number and convective day with no spaces or symbols. (EX: outbreaknumber: 276; cDate: 1994-03-01 --> ID: 27619940301) 
+
+The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
 ```{r}
 Tor.sfdf$outbreakNumber <- outbreakNumber
-Tor.sfdf$ID <- paste0(outbreakNumber, "-", Tor.sfdf$date)
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
+
+Tor.sfdf$ID2 <- paste0(outbreakNumber, "-", Tor.sfdf$date)
+
 Out.sfdf <- Tor.sfdf %>%
   group_by(outbreakNumber) %>%
   summarize(Year = first(Year),
