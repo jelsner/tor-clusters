@@ -374,8 +374,9 @@ df <- df %>%
 
 Download grib files
 ```{r}
-for(i in 1:337){
-  download.file(df$slug[i], paste0("NARRdata/OutbreakDay", i, ".grb"), mode = "wb")
+len <- dim(df)[1]
+for(i in 1:len){
+  download.file(df$slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
 }
 ```
 
