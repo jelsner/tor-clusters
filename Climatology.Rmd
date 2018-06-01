@@ -401,10 +401,23 @@ aCAPE <- numeric()
 aHLCY <- numeric()
 aCIN <- numeric()
 aLFTX <- numeric()
-for(i in 1:337){
+
+OutDaysHulls.sfdf <- as.data.frame(OutDaysHulls.sfdf)
+OutDaysHulls.sfdf <- st_sf(OutDaysHulls.sfdf)
+
+#Something funky with 1995-05-09 -- highest it goes to is 129...so it is changing all of the layers to 129 producing an error.
+
+OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
+  filter(ID != "27819950509")
+df <- df %>%
+  filter(ID != "27819950509")
+
+len <- dim(df)[1]
+
+for(i in 1:len){
  print(i)
  
- rb <- brick(paste0("NARRdata/OutbreakDay", i, ".grb"))
+ rb <- brick(paste0("NARRdata", i, ".grb"))
  CAPE.rl <- raster(rb, layer = 375)
  HLCY.rl <- raster(rb, layer = 323)
  CIN.rl <- raster(rb, layer = 376)
