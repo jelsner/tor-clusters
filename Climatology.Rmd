@@ -304,9 +304,12 @@ Kappa <- numeric()
 Scale <- numeric()
 Mu <- numeric()
 
-for(i in 1:n){
+IDs <- OutDays.sfdf$ID
+
+for(i in IDs){
  print(i)
- sfdf <- OutDays.sfdf[i, ]
+ sfdf <- Tor.sfdf %>%
+   filter(ID == i)
  sldf <- as(sfdf, "Spatial")
  hull <- gConvexHull(sldf)
  
