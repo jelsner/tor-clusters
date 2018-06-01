@@ -434,7 +434,9 @@ for(i in 1:len){
 
 Model the relationships
 ```{r}
-sfdf <- OutDaysHulls.sfdf[1:337, ]
+len <- dim(OutDaysHulls.sfdf)[1]
+
+sfdf <- OutDaysHulls.sfdf[1:len, ]
 sfdf$aCAPE <- aCAPE
 sfdf$aHLCY <- aHLCY
 sfdf$aCIN <- aCIN
