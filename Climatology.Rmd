@@ -290,6 +290,12 @@ library(maptools)
 n <- dim(OutDays.sfdf)[1] # number of outbreak days
 ```
 
+Create an ID column for the for loop so that you do not repeat convective days. If you looped through outbreak days, there are several outbreaks with tornadoes on the same outbreak day. So a unique identifier is needed with the outbreak number and the convective day. 
+```{r}
+OutDays.sfdf <- OutDays.sfdf %>%
+  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
+```
+
 Loop over all outbreak days.  See Rspatialcourse_CMIS_PDF Standard.pdf for interpretations of kappa, mu, and sigma. Kappa is the mean intensity of the inhomogeneous parent process and mu is the mean number of offsprings.
 ```{r}
 Area <- numeric()
