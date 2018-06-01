@@ -1,4 +1,4 @@
-Spatial analysis of environmental factors related to tornado outbreaks
+Spatial Analysis of Environmental Factors Related to Tornado Outbreaks
 ======================================================================
 
 ## Research for Submission to: Electronic Journal of Severe Storms Meteorology
