@@ -357,7 +357,8 @@ Get environmental data at 18Z (2p local) on the convective day. Try 00z on day a
 ```{r}
 library(lubridate)
 df <- as.data.frame(OutDays.sfdf) %>%
-  mutate(YrMo = paste0(Year, Month),
+  mutate(Yr = Year,
+         YrMo = paste0(Year, Month),
          YrMoDa = paste0(YrMo, Day),
          slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_0000_000.grb"),
          slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2))
