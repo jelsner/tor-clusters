@@ -462,7 +462,7 @@ summary(model0a)
 model1 <- lmer(log(OutbreakDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
 summary(model1)
 
-model2 <- lmer(log(OutbreakDayMaxEd) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+model2 <- lmer(log(OutbreakDayMaxED) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
 summary(model2)
 
 model4 <- lmer(log(nT) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
