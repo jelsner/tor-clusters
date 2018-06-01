@@ -11,7 +11,7 @@ Why is this important? Outbreaks represent the most concentrated large-scale ris
 
 This analysis is done at the scale of outbreaks rather than at regional or local scales. 
 
-This code uses the SPC tornado data set.
+This code uses the Storm Prediction Center's tornado data set.
 
 Set working directory and load packages.
 ```{r}
