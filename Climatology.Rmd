@@ -31,19 +31,26 @@ if(!file.exists("torn")){
   }
 ```
 
-Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The eDate is the date needed to downnload 00Z NARR data for the convective day.
+Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The eDate is the date needed to download 00Z NARR data for the convective day.
 ```{r}
 Tor.sfdf <- sf::st_read(dsn = "torn", 
                       layer = "torn", 
                       stringsAsFactors = FALSE)
 
 Tor.sfdf <- Tor.sfdf %>%
-  filter(yr >= 1994, mag != -9) %>%
-  mutate(DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
+  filter(yr >= 1994, #start in 1994 because of Radar implementation
+         yr <= 2014, #NARR stops at October 2014
+         mag != -9, #remove missing data
+         st != c("AK", "PR", "HI")) #remove Alaska, Puerto Rico, Hawaii
+
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
+         DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
          Hour = hour(DateTime),
          Year = year(DateTime),
-         cDateTime = as_datetime(ifelse(Hour<6, (DateTime - 86400), DateTime), tz = Sys.timezone()),
-         cDate = as.Date(cDateTime),
+         cDateTime = DateTime - as.difftime(6, unit = "hours"),
+         test = as_datetime(ifelse(Hour<6, (DateTime - 86400), cDateTime), tz = Sys.timezone()),
+         cDate = as.Date(test),,
          eDate = as.Date(cDate) + 1, # next day for 00z data
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
