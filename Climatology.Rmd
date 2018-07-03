@@ -5,7 +5,7 @@ Research for Submission to: **Electronic Journal of Severe Storms Meteorology**
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
 
-Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable better explains worst-case outbreak-level tornado energy?
+Q: Which environmental variable (CAPE or shear) best explains outbreak-level average tornado energy? Which variable best explains worst-case outbreak-level tornado energy?
 
 Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
 
@@ -54,6 +54,7 @@ Tor.sfdf <- Tor.sfdf %>%
          AreaPath = Length * Width,
          Ma = factor(month.abb[mo], levels = month.abb[1:12])) %>%
   sf::st_sf()
+max(Tor.sfdf$yr)
 ```
 
 The geometry type is `LINESTRING`. Each tornado track is a single line. 
