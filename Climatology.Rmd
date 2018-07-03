@@ -1,17 +1,21 @@
-Spatial analysis of environmental factors related to tornado outbreaks
+Spatial Analysis of Environmental Factors Related to Tornado Outbreaks
 ======================================================================
 
-## Electronic Journal of Severe Storms Meteorology
+Research for Submission to: **Electronic Journal of Severe Storms Meteorology**
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
+<<<<<<< HEAD
 
 Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable best explains worst-case outbreak-level tornado energy?
+=======
+Q: Which environmental variable (CAPE or shear) better explains outbreak-level average tornado energy? Which variable better explains worst-case outbreak-level tornado energy?
+>>>>>>> c18493d68f190fdfccd31323f46b5fbfb62f9071
 
 Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
 
 This analysis is done at the scale of outbreaks rather than at regional or local scales. 
 
-This code uses the SPC tornado data set.
+This code uses the Storm Prediction Center's tornado data set.
 
 Set working directory and load packages.
 ```{r}
@@ -31,7 +35,7 @@ if(!file.exists("torn")){
   }
 ```
 
-Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day column by subtracting 6 hours from local time (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
+Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The eDate is the date needed to downnload 00Z NARR data for the convective day.
 ```{r}
 Tor.sfdf <- sf::st_read(dsn = "torn", 
                       layer = "torn", 
@@ -40,11 +44,11 @@ Tor.sfdf <- sf::st_read(dsn = "torn",
 Tor.sfdf <- Tor.sfdf %>%
   filter(yr >= 1994, mag != -9) %>%
   mutate(DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
-         cDateTime = DateTime - as.difftime(6, unit = "hours"),
-         eDate = as.Date(DateTime) + 1, # next day for 00z data
-         cDate = as.Date(cDateTime),
          Hour = hour(DateTime),
          Year = year(DateTime),
+         cDateTime = as_datetime(ifelse(Hour<6, (DateTime - 86400), DateTime), tz = Sys.timezone()),
+         cDate = as.Date(cDateTime),
+         eDate = as.Date(cDate) + 1, # next day for 00z data
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
          Width = wid * .9144,
@@ -127,10 +131,16 @@ proc.time() - stime
    user  system elapsed 
 119.500  42.834 173.344 
 
-Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
+Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. Create unique ID for each outbreak and outbreak day. To do this combine the outbreak number and convective day with no spaces or symbols. (EX: outbreaknumber: 276; cDate: 1994-03-01 --> ID: 27619940301) 
+
+The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
 ```{r}
 Tor.sfdf$outbreakNumber <- outbreakNumber
-Tor.sfdf$ID <- paste0(outbreakNumber, "-", Tor.sfdf$date)
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
+
+Tor.sfdf$ID2 <- paste0(outbreakNumber, "-", Tor.sfdf$date)
+
 Out.sfdf <- Tor.sfdf %>%
   group_by(outbreakNumber) %>%
   summarize(Year = first(Year),
@@ -263,6 +273,8 @@ Plot the centroid for each outbreak day and size the aesthetic by the number of 
 ```{r}
 outbreakDayCentroids <- st_centroid(OutDays.sfdf)
 outbreakDayCentroids$nT <- OutDays.sfdf$nT
+outbreakDayCentroids <- as.data.frame(outbreakDayCentroids)
+outbreakDayCentroids <- as(st_sf(outbreakDayCentroids), "Spatial")
 
 tm_shape(outbreakDayCentroids) +
   tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
@@ -283,6 +295,12 @@ library(maptools)
 n <- dim(OutDays.sfdf)[1] # number of outbreak days
 ```
 
+Create an ID column for the for loop so that you do not repeat convective days. If you looped through outbreak days, there are several outbreaks with tornadoes on the same outbreak day. So a unique identifier is needed with the outbreak number and the convective day. 
+```{r}
+OutDays.sfdf <- OutDays.sfdf %>%
+  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
+```
+
 Loop over all outbreak days.  See Rspatialcourse_CMIS_PDF Standard.pdf for interpretations of kappa, mu, and sigma. Kappa is the mean intensity of the inhomogeneous parent process and mu is the mean number of offsprings.
 ```{r}
 Area <- numeric()
@@ -291,9 +309,12 @@ Kappa <- numeric()
 Scale <- numeric()
 Mu <- numeric()
 
-for(i in 1:n){
+IDs <- OutDays.sfdf$ID
+
+for(i in IDs){
  print(i)
- sfdf <- OutDays.sfdf[i, ]
+ sfdf <- Tor.sfdf %>%
+   filter(ID == i)
  sldf <- as(sfdf, "Spatial")
  hull <- gConvexHull(sldf)
  
@@ -341,16 +362,26 @@ Get environmental data at 18Z (2p local) on the convective day. Try 00z on day a
 ```{r}
 library(lubridate)
 df <- as.data.frame(OutDays.sfdf) %>%
-  mutate(YrMo = paste0(Year, Month),
+  mutate(Yr = Year,
+         YrMo = paste0(Year, Month),
          YrMoDa = paste0(YrMo, Day),
          slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_0000_000.grb"),
          slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2))
 ```
 
+Remove 2015 and 2016 years!
+```{r}
+df <- df %>%
+  filter(Yr != 2015, 
+         Yr != 2016,
+         cDate != "2014-10-13")
+```
+
 Download grib files
 ```{r}
-for(i in 1:337){
-  download.file(df$slug[i], paste0("NARRdata/OutbreakDay", i, ".grb"), mode = "wb")
+len <- dim(df)[1]
+for(i in 1:len){
+  download.file(df$slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
 }
 ```
 
@@ -360,6 +391,14 @@ OutDaysHulls.sfdf <- st_convex_hull(OutDays.sfdf)
 OutDaysHulls.sfdf <- st_transform(OutDaysHulls.sfdf, crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs") # To match the crs of the grb rasters
 ```
 
+Remove these years and cDate because no NARR data is available. 
+```{r}
+OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
+  filter(Year != 2015, 
+         Year != 2016,
+         cDate != "2014-10-13")
+```
+
 Then loop over all outbreak days extracting the average CAPE and HLCY within the hulls.
 ```{r}
 library(raster)
@@ -367,10 +406,23 @@ aCAPE <- numeric()
 aHLCY <- numeric()
 aCIN <- numeric()
 aLFTX <- numeric()
-for(i in 1:337){
+
+OutDaysHulls.sfdf <- as.data.frame(OutDaysHulls.sfdf)
+OutDaysHulls.sfdf <- st_sf(OutDaysHulls.sfdf)
+
+#Something funky with 1995-05-09 -- highest it goes to is 129...so it is changing all of the layers to 129 producing an error.
+
+OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
+  filter(ID != "27819950509")
+df <- df %>%
+  filter(ID != "27819950509")
+
+len <- dim(df)[1]
+
+for(i in 1:len){
  print(i)
  
- rb <- brick(paste0("NARRdata/OutbreakDay", i, ".grb"))
+ rb <- brick(paste0("NARRdata", i, ".grb"))
  CAPE.rl <- raster(rb, layer = 375)
  HLCY.rl <- raster(rb, layer = 323)
  CIN.rl <- raster(rb, layer = 376)
@@ -387,7 +439,9 @@ for(i in 1:337){
 
 Model the relationships
 ```{r}
-sfdf <- OutDaysHulls.sfdf[1:337, ]
+len <- dim(OutDaysHulls.sfdf)[1]
+
+sfdf <- OutDaysHulls.sfdf[1:len, ]
 sfdf$aCAPE <- aCAPE
 sfdf$aHLCY <- aHLCY
 sfdf$aCIN <- aCIN
@@ -413,7 +467,7 @@ summary(model0a)
 model1 <- lmer(log(OutbreakDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
 summary(model1)
 
-model2 <- lmer(log(OutbreakDayMaxEd) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+model2 <- lmer(log(OutbreakDayMaxED) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
 summary(model2)
 
 model4 <- lmer(log(nT) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
