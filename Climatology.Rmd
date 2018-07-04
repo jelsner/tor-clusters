@@ -41,8 +41,8 @@ Tor.sfdf <- sf::st_read(dsn = "torn",
 
 Tor.sfdf <- Tor.sfdf %>%
   filter(yr >= 1994, #start in 1994 because of Radar implementation
-         yr <= 2014, #NARR stops at October 2014
-         mag != -9, #remove missing data
+#         yr <= 2014, #NARR stops at October 2014. Let's worry about that later.
+         mag != -9, #removes tornadoes with missing EF rating
          st != c("AK", "PR", "HI")) #remove Alaska, Puerto Rico, Hawaii
 
 Tor.sfdf <- Tor.sfdf %>%
