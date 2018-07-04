@@ -87,7 +87,12 @@ Tor.sfdf <- Tor.sfdf %>%
 ```
 
 Determine the centroid point of each track. We create a simple feature object from the `st_centroid()` function. 
+
+Remove empty geometries using the `which()` and `st_is_empty` functions. If these are not removed, the st_centroid function will not work. 
 ```{r}
+Tor.sfdf <- st_sf(Tor.sfdf)
+Tor.sfdf <- Tor.sfdf[-which(st_is_empty(Tor.sfdf)),]
+
 TorP.sfdf <- st_centroid(Tor.sfdf)
 TorP.sfdf$geometry[1]
 ```
