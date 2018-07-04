@@ -9,7 +9,9 @@ Q: Which environmental variable (CAPE or shear) best explains outbreak-level ave
 
 Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
 
-This analysis is done at the scale of outbreaks rather than at regional or local scales. 
+This analysis is done at the scale of tornado groups rather than at regional or local scales. 
+
+To minimize controvery related to terminology tornado 'group' is used to refer to tornadoes occurring close together in space and time. The word 'outbreak' has a specific definition that is not strictly adhered to here. 
 
 This code uses the Storm Prediction Center's tornado data set.
 
@@ -57,9 +59,9 @@ Tor.sfdf <- Tor.sfdf %>%
 max(Tor.sfdf$yr)
 ```
 
-The geometry type is `LINESTRING`. Each tornado track is a single line. 
+The geometry type is `LINESTRING`. Each tornado track is a single straight line. 
 
-Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3 sec gusts on the operational EF Scale (Table 2-1 of NRC2007).
+Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3 sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al.
 
 $E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},$ where $A_p$ is the area of the path, $\rho$ is area density [1 kg/m^3]  $v_j$ is the midpoint wind speed for each rating, and $w_j$ is the corresponding fraction of path area by EF rating. With no upper bound on the EF5 wind speeds, the midpoint wind speed is set at 97 m~s$^{-1}$ (7.5 m~s$^{-1}$ above the threshold wind speed consistent with the EF4 midpoint speed relative to its threshold)
 ```{r}
@@ -79,21 +81,23 @@ Tor.sfdf <- Tor.sfdf %>%
   mutate(ED = EW3 * AreaPath)
 ```
 
-Determine the centroid point of each track. We create a simple feature object from the `st_centroid()` function. 
+Determine the centroid point along each track. We create a simple feature object from the `st_centroid()` function. 
 ```{r}
 TorP.sfdf <- st_centroid(Tor.sfdf)
 TorP.sfdf$geometry[1]
 ```
 
-Every thing is the same except the geometry type is `POINT`. This is reflected in the column `geometry`.
+Everything is the same except the geometry type is `POINT`. This is reflected in the column `geometry`.
 
-Determine tornadoes close to each another in space and time. We start by extracting the coordinates of the centroids as a N by 2 matrix of numbers, where N is the number of unique tornadoes. We also extract the date-time as a vector of class `POSIXct`.
+Determine tornadoes that are close to each other in space and time. Start by extracting the coordinates of the centroids as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
 ```{r}
 space <- st_coordinates(TorP.sfdf)
 time <- Tor.sfdf$DateTime
 ```
 
-Next we compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. We divide the spatial distance by 10 so that the values are comparable with the time 'distance' based on the assumption of 10 meters every second for the average speed of a storm system generating the tornadoes. Distance from NYC to Denver 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday events. For analysis we might want to consider each day in the multiday outbreak separately. As we increase the value of the divisor the cluster areas will get larger.
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are comparable with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
+
+For comparison: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday events. For analysis we might want to consider each day in the multiday outbreak separately. As the value of the divisor increases cluster areas get larger.
 ```{r}
 ds <- dist(space) / 10
 dt <- dist(time)
@@ -102,11 +106,11 @@ dst <- ds + dt
 
 Distances are saved as an object of class `dist` containing a vector of length `r N * (N-1)/2`, which is the number of unique point pairs.
 
-Next we group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own outbreak and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado outbreaks) until there is a single large outbreak.
+Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group.
 
-The single linkage method (`method = "single"`) is closely related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here our weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
+The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
 
-To extract an outbreak number we use the `cutree()` function that cuts the tree into tornado outbreaks where the tornadoes in each outbreak are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller outbreaks (fewer tornadoes per outbreak).
+To extract a group number we use the `cutree()` function that cuts the tree into tornado groups where the tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per outbreak).
 ```{r}
 stime <- proc.time()
 tree <- hclust(dst, method = "single")
