@@ -33,7 +33,7 @@ if(!file.exists("torn")){
   }
 ```
 
-Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The eDate is the date needed to download 00Z NARR data for the convective day.
+Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The `eDate` is the date needed to download 00Z NARR data for the convective day.
 ```{r}
 Tor.sfdf <- sf::st_read(dsn = "torn", 
                       layer = "torn", 
@@ -88,16 +88,11 @@ Tor.sfdf <- Tor.sfdf %>%
   mutate(ED = EW3 * AreaPath)
 ```
 
-<<<<<<< HEAD
 Determine the centroid point along each track. We create a simple feature object from the `st_centroid()` function. 
-=======
-Determine the centroid point of each track. We create a simple feature object from the `st_centroid()` function. 
-
-Remove empty geometries using the `which()` and `st_is_empty` functions. If these are not removed, the st_centroid function will not work. 
->>>>>>> 11d2abcfaaa2d93cfbf6d4961a7edbddb545c844
+Remove empty geometries using the `which()` and `st_is_empty` functions. If these are not removed, the `st_centroid()` function will not work. 
 ```{r}
-Tor.sfdf <- st_sf(Tor.sfdf)
-Tor.sfdf <- Tor.sfdf[-which(st_is_empty(Tor.sfdf)),]
+#Tor.sfdf <- st_sf(Tor.sfdf)
+#Tor.sfdf <- Tor.sfdf[-which(st_is_empty(Tor.sfdf)),]
 
 TorP.sfdf <- st_centroid(Tor.sfdf)
 TorP.sfdf$geometry[1]
