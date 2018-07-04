@@ -50,7 +50,7 @@ Tor.sfdf <- Tor.sfdf %>%
          Year = year(DateTime),
          cDateTime = DateTime - as.difftime(6, unit = "hours"),
          test = as_datetime(ifelse(Hour<6, (DateTime - 86400), cDateTime), tz = Sys.timezone()),
-         cDate = as.Date(test),,
+         cDate = as.Date(test),
          eDate = as.Date(cDate) + 1, # next day for 00z data
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
