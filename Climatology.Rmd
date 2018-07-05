@@ -24,26 +24,26 @@ library(tmap)
 library(USAboundaries)
 ```
 
-Download the tornado data. Source: Storm Prediction Center (SPC) http://www.spc.noaa.gov/gis/svrgis/. 
-```{r, eval=TRUE}
-if(!file.exists("torn")){ 
-  download.file("https://www.spc.noaa.gov/gis/svrgis/zipped/torn.zip", "torn.zip", mode = "wb")
-  unzip("torn.zip")
-  }
+The new GIS file contains missing geometries for over 30% of the tornadoes. The number of missing geometries is much higher starting with 1996.  Use the csv file instead from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the crs using the ESPG 4326.
+```{r}
+Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
+Tor.spdf <- Tor.df
+sp::coordinates(Tor.spdf) <- ~ slon + slat
+Tor.sfdf <- st_as_sf(Tor.spdf)
+st_crs(Tor.sfdf) <- 4326
 ```
 
-Read the tornado data. Add a data/time column also add columns for path length, width, and area in metric units. Remove tornadoes in Hawaii, Alaska, and Puerto Rico. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The `eDate` is the date needed to download 00Z NARR data for the convective day.
+Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. For missing EF ratings use https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
 ```{r}
-Tor.sfdf <- sf::st_read(dsn = "torn", 
-                      layer = "torn", 
-                      stringsAsFactors = FALSE)
-
 Tor.sfdf <- Tor.sfdf %>%
-  filter(yr >= 1994, #start in 1994 because of Radar implementation
-#         yr <= 2014, #NARR stops at October 2014. Let's worry about this later.
-         mag != -9, #removes tornadoes with missing EF rating
-         st != c("AK", "PR", "HI")) #remove Alaska, Puerto Rico, Hawaii
+  filter(yr >= 1994, #start in 1994 because of comprehensive radar
+         st != c("AK", "PR", "HI")) %>% #remove tornadoes occurring in Alaska, Puerto Rico, and Hawaii
+  mutate(mag = ifelse(mag == -9 & len <= 5, 0, mag),
+         mag = ifelse(mag == -9 & len > 5, 1, mag))
+```
 
+Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The `eDate` is the date needed to download 00Z NARR data for the convective day.
+```{r}
 Tor.sfdf <- Tor.sfdf %>%
   mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
          DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
@@ -65,7 +65,7 @@ Tor.sfdf <- Tor.sfdf %>%
 max(Tor.sfdf$yr)
 ```
 
-The geometry type is `LINESTRING`. Each tornado track is a single straight line. 
+The geometry type is `POINT`. Each tornado is a single location (start location). 
 
 Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3 sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al.
 
@@ -87,20 +87,9 @@ Tor.sfdf <- Tor.sfdf %>%
   mutate(ED = EW3 * AreaPath)
 ```
 
-Determine the centroid point along each track. We create a simple feature object from the `st_centroid()` function. 
-Remove empty geometries using the `which()` and `st_is_empty` functions. If these are not removed, the `st_centroid()` function will not work. 
+Determine tornadoes that are close to each other in space and time. First project the lat/lon geometry. See https://epsg.io/102004.  Then extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
 ```{r}
-#Tor.sfdf <- st_sf(Tor.sfdf)
-#Tor.sfdf <- Tor.sfdf[-which(st_is_empty(Tor.sfdf)),]
-
-TorP.sfdf <- st_centroid(Tor.sfdf)
-TorP.sfdf$geometry[1]
-```
-
-Everything is the same except the geometry type is `POINT`. This is reflected in the column `geometry`.
-
-Determine tornadoes that are close to each other in space and time. Start by extracting the coordinates of the centroids as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
-```{r}
+TorP.sfdf <- st_transform(Tor.sfdf, crs = 102004)
 space <- st_coordinates(TorP.sfdf)
 time <- Tor.sfdf$DateTime
 ```
