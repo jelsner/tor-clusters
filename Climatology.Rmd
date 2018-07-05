@@ -27,9 +27,8 @@ library(USAboundaries)
 Download the tornado data. Source: Storm Prediction Center (SPC) http://www.spc.noaa.gov/gis/svrgis/. 
 ```{r, eval=TRUE}
 if(!file.exists("torn")){ 
-  download.file("http://www.spc.noaa.gov/gis/svrgis/zipped/tornado.zip",
-                "tornado.zip", mode = "wb")
-  unzip("tornado.zip")
+  download.file("https://www.spc.noaa.gov/gis/svrgis/zipped/torn.zip", "torn.zip", mode = "wb")
+  unzip("torn.zip")
   }
 ```
 
@@ -41,7 +40,7 @@ Tor.sfdf <- sf::st_read(dsn = "torn",
 
 Tor.sfdf <- Tor.sfdf %>%
   filter(yr >= 1994, #start in 1994 because of Radar implementation
-#         yr <= 2014, #NARR stops at October 2014. Let's worry about that later.
+#         yr <= 2014, #NARR stops at October 2014. Let's worry about this later.
          mag != -9, #removes tornadoes with missing EF rating
          st != c("AK", "PR", "HI")) #remove Alaska, Puerto Rico, Hawaii
 
