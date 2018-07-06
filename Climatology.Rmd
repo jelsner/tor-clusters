@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 Spatial Analysis of Environmental Factors Related to Tornado Outbreaks
 ======================================================================
 
@@ -24,10 +29,11 @@ library(tmap)
 library(USAboundaries)
 ```
 
-The new GIS file contains missing geometries for over 30% of the tornadoes. The number of missing geometries is much higher starting with 1996.  Use the csv file instead from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the crs using the ESPG 4326.
+The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
 ```{r}
 Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
 Tor.spdf <- Tor.df
+rm(Tor.df)
 sp::coordinates(Tor.spdf) <- ~ slon + slat
 Tor.sfdf <- st_as_sf(Tor.spdf)
 st_crs(Tor.sfdf) <- 4326
@@ -101,6 +107,7 @@ For comparison: Distance from New York to Denver is 2.622 x 10^6 meters. There a
 ds <- dist(space) / 10
 dt <- dist(time)
 dst <- ds + dt
+rm(ds, dt) # helps control memory allocation
 ```
 
 Distances are saved as an object of class `dist` containing a vector of length `r N * (N-1)/2`, which is the number of unique point pairs.
@@ -109,40 +116,28 @@ Next group the tornadoes based on the space-time distances. This is done with th
 
 The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
 
-To extract a group number we use the `cutree()` function that cuts the tree into tornado groups where the tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per outbreak).
+The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
 ```{r}
 stime <- proc.time()
 tree <- hclust(dst, method = "single")
-outbreakNumber <- as.integer(cutree(tree, h = 100000))
+groupNumber <- as.integer(cutree(tree, h = 100000))
 proc.time() - stime
 ```
 
-  user  system elapsed 
- 15.852   1.193  17.186 
+ user  system elapsed 
+ 21.256   1.677  22.983 
 
-Compare with DBSCAN algorithm.
-```{r, eval=FALSE}
-library(dbscan)
-stime <- proc.time()
-outbreakNumber2 <- dbscan(dst, eps = 100000, minPts = 1)$cluster
-proc.time() - stime
-```
-
-   user  system elapsed 
-119.500  42.834 173.344 
-
-Add the outbreak number to each tornado then create a new simple feature object that summarizes the tornadoes by outbreak. Create unique ID for each outbreak and outbreak day. To do this combine the outbreak number and convective day with no spaces or symbols. (EX: outbreaknumber: 276; cDate: 1994-03-01 --> ID: 27619940301) 
-
-The summary on the geometry column results in MULTILINESTRING (one line for each tornado). Keep only outbreaks with at least 30 tornadoes.
+Add the group number to each tornado then create a new simple feature object that summarizes the tornadoes by group. Also, create a group-day identification. Combine the outbreak number and convective day with no spaces or symbols. (e.g., group number: 276; cDate: 1994-03-01 --> groupDay: 27619940301) 
 ```{r}
-Tor.sfdf$outbreakNumber <- outbreakNumber
+Tor.sfdf$groupNumber <- groupNumber
 Tor.sfdf <- Tor.sfdf %>%
-  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
+  mutate(groupDay = paste0(groupNumber, gsub("-", "", cDate)))
+```
 
-Tor.sfdf$ID2 <- paste0(outbreakNumber, "-", Tor.sfdf$date)
-
-Out.sfdf <- Tor.sfdf %>%
-  group_by(outbreakNumber) %>%
+Compute group-level statistics. Keep only groups with at least 30 tornadoes.
+```{r}
+Group.sfdf <- Tor.sfdf %>%
+  group_by(groupNumber) %>%
   summarize(Year = first(Year),
             Month = first(mo),
             FirstDate = first(date),
@@ -158,47 +153,46 @@ Out.sfdf <- Tor.sfdf %>%
             n3 = sum(mag == 3),
             n4 = sum(mag == 4),
             n5 = sum(mag == 5),
-            OutbreakTotalED = sum(ED),
-            Name2 = paste(round(OutbreakTotalED/10^12), "TW"),
+            GroupTotalED = sum(ED),
+            Name2 = paste(round(GroupTotalED/10^12), "TW"),
             maxEF = max(mag),
             nD = n_distinct(date),
             StartTime = first(DateTime),
             EndTime = last(DateTime),
             Duration = difftime(EndTime, StartTime, units = "secs")) %>%
   filter(nT >= 30)
-Out.sfdf$TotalPathLength <- st_length(Out.sfdf)
 ```
 
 Make some tables: Top 10 by number of tornadoes, energy dissipation, and duration.
 ```{r}
-Out.sfdf %>%
+Group.sfdf %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 
-Out.sfdf %>%
-  top_n(n = 10, wt = OutbreakTotalED) %>%
-  arrange(desc(OutbreakTotalED))
+Group.sfdf %>%
+  top_n(n = 10, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
 
-Out.sfdf %>%
+Group.sfdf %>%
   top_n(n = 10, wt = Duration) %>%
   arrange(desc(Duration))
 
-Out.sfdf %>%
+Group.sfdf %>%
   top_n(n = 10, wt = nD) %>%
   arrange(desc(nD))
 ```
 
-Map the tracks of the top 10 outbreaks by energy dissipation. First select the top 12 outbreaks. Then create a simple features data frame using only the tornadoes in this outbreak by filtering on outbreak number.
+Map the tracks of the top 10 groups by energy dissipation. First select the top 12 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number.
 ```{r}
-df <- as.data.frame(Out.sfdf) %>%
-  top_n(n = 12, wt = OutbreakTotalED)
+df <- as.data.frame(Group.sfdf) %>%
+  top_n(n = 12, wt = GroupTotalED)
 
 sfdf <- Tor.sfdf %>%
-   filter(outbreakNumber %in% df$outbreakNumber) %>%
+   filter(groupNumber %in% df$groupNumber) %>%
    mutate(EF = factor(mag))
 
-sfdf2 <- left_join(sfdf, df, by = "outbreakNumber") %>%
-  arrange(desc(OutbreakTotalED))
+sfdf2 <- left_join(sfdf, df, by = "groupNumber") %>%
+  arrange(desc(GroupTotalED))
 ```
 
 Get state borders and use the `tm_shape()` function.
@@ -208,7 +202,7 @@ stateBorders <- us_states(states = sts)
 
 tm_shape(sfdf2) +
   tm_facets(by = "Name", ncol = 3)  +
-  tm_lines(col = "EF", lwd = 4, palette = "Reds", n = 6) +
+  tm_symbols(col = "EF", palette = "Reds", n = 6) +
   tm_credits(text = df$Name2, position = c("left", "bottom"), bg.color = "white") +
 tm_shape(stateBorders) + 
   tm_borders(col = "grey") +
@@ -218,9 +212,8 @@ tm_shape(stateBorders) +
 
 Distribution of the number of days.
 ```{r}
-dfnD <- as.data.frame(Out.sfdf) %>%
+dfnD <- as.data.frame(Group.sfdf) %>%
   arrange(desc(nD))
-
 table(dfnD$nD)
 ```
 
