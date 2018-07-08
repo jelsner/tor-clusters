@@ -108,7 +108,7 @@ dst <- ds + dt
 rm(ds, dt) # helps control memory allocation
 ```
 
-Distances are saved as an object of class `dist` containing a vector of length `r N * (N-1)/2`, which is the number of unique point pairs.
+Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
 
 Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group.
 
