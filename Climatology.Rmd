@@ -3,22 +3,22 @@ output: html_document
 editor_options: 
   chunk_output_type: console
 ---
-Spatial Analysis of Environmental Factors Related to Tornado Outbreaks
-======================================================================
+Spatial Analysis of Environmental Factors Related to Large Tornado Groups
+=========================================================================
 
-Research for Submission to: **Electronic Journal of Severe Storms Meteorology**
+Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado outbreaks? How widely do the environmental characteristics of outbreaks vary geographically?
+Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do the environmental characteristics of groups vary geographically?
 
-Q: Which environmental variable (CAPE or shear) best explains outbreak-level average tornado energy? Which variable best explains worst-case outbreak-level tornado energy?
+Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy? Which variable best explains worst-case group-level tornado energy?
 
-Why is this important? Outbreaks represent the most concentrated large-scale risk for damage and casualties.
+Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties.
 
 This analysis is done at the scale of tornado groups rather than at regional or local scales. 
 
 To minimize controvery related to terminology tornado 'group' is used to refer to tornadoes occurring close together in space and time. The word 'outbreak' has a specific definition that is not strictly adhered to here. 
 
-This code uses the Storm Prediction Center's tornado data set.
+The analysis and modeling makes use of the Storm Prediction Center's tornado data set.
 
 Set working directory and load packages.
 ```{r}
@@ -48,7 +48,7 @@ Tor.sfdf <- Tor.sfdf %>%
          mag = ifelse(mag == -9 & len > 5, 1, mag))
 ```
 
-Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). The `eDate` is the date needed to download 00Z NARR data for the convective day.
+Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
 ```{r}
 Tor.sfdf <- Tor.sfdf %>%
   mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
@@ -56,9 +56,7 @@ Tor.sfdf <- Tor.sfdf %>%
          Hour = hour(DateTime),
          Year = year(DateTime),
          cDateTime = DateTime - as.difftime(6, unit = "hours"),
-         test = as_datetime(ifelse(Hour<6, (DateTime - 86400), cDateTime), tz = Sys.timezone()),
-         cDate = as.Date(test),
-         eDate = as.Date(cDate) + 1, # next day for 00z data
+         cDate = as.Date(cDateTime),
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
          Width = wid * .9144,
@@ -95,8 +93,8 @@ Tor.sfdf <- Tor.sfdf %>%
 
 Determine tornadoes that are close to each other in space and time. First project the lat/lon geometry. See https://epsg.io/102004.  Then extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
 ```{r}
-TorP.sfdf <- st_transform(Tor.sfdf, crs = 102004)
-space <- st_coordinates(TorP.sfdf)
+Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
+space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
 
@@ -127,16 +125,14 @@ proc.time() - stime
  user  system elapsed 
  21.256   1.677  22.983 
 
-Add the group number to each tornado then create a new simple feature object that summarizes the tornadoes by group. Also, create a group-day identification. Combine the outbreak number and convective day with no spaces or symbols. (e.g., group number: 276; cDate: 1994-03-01 --> groupDay: 27619940301) 
+Add the group number to each tornado. 
 ```{r}
-Tor.sfdf$groupNumber <- groupNumber
-Tor.sfdf <- Tor.sfdf %>%
-  mutate(groupDay = paste0(groupNumber, gsub("-", "", cDate)))
+Tor.sfdfT$groupNumber <- groupNumber
 ```
 
-Compute group-level statistics. Keep only groups with at least 30 tornadoes.
+Compute group-level statistics. Keep only tornado groups with at least 30 tornadoes.
 ```{r}
-Group.sfdf <- Tor.sfdf %>%
+Groups.sfdfT <- Tor.sfdfT %>%
   group_by(groupNumber) %>%
   summarize(Year = first(Year),
             Month = first(mo),
@@ -161,33 +157,34 @@ Group.sfdf <- Tor.sfdf %>%
             EndTime = last(DateTime),
             Duration = difftime(EndTime, StartTime, units = "secs")) %>%
   filter(nT >= 30)
+dim(Groups.sfdfT)
 ```
 
-Make some tables: Top 10 by number of tornadoes, energy dissipation, and duration.
+Make some tables: Top 10 groups by number of tornadoes, energy dissipation, and duration.
 ```{r}
-Group.sfdf %>%
+Groups.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 
-Group.sfdf %>%
+Groups.sfdfT %>%
   top_n(n = 10, wt = GroupTotalED) %>%
   arrange(desc(GroupTotalED))
 
-Group.sfdf %>%
+Groups.sfdfT %>%
   top_n(n = 10, wt = Duration) %>%
   arrange(desc(Duration))
 
-Group.sfdf %>%
+Groups.sfdfT %>%
   top_n(n = 10, wt = nD) %>%
   arrange(desc(nD))
 ```
 
-Map the tracks of the top 10 groups by energy dissipation. First select the top 12 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number.
+Map the locations (start points) of the top 12 tornado groups by energy dissipation. First select the top 12 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number.
 ```{r}
-df <- as.data.frame(Group.sfdf) %>%
+df <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 12, wt = GroupTotalED)
 
-sfdf <- Tor.sfdf %>%
+sfdf <- Tor.sfdfT %>%
    filter(groupNumber %in% df$groupNumber) %>%
    mutate(EF = factor(mag))
 
@@ -212,64 +209,66 @@ tm_shape(stateBorders) +
 
 Distribution of the number of days.
 ```{r}
-dfnD <- as.data.frame(Group.sfdf) %>%
+dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
 ```
 
-Frequency by month of the start day of multi-day outbreaks of at least 4, 5, and 6 days in length.
+Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
 ```{r}
-as.data.frame(Out.sfdf) %>%
+as.data.frame(Groups.sfdfT) %>%
   filter(nD >= 4) %>%
   count(Month) %>%
   mutate(prop = prop.table(n))
 
-as.data.frame(Out.sfdf) %>%
+as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
-
 ```
 
-Outbreak days. Filter individual tornadoes to remove tornadoes not in large outbreaks. Group by outbreak number and convective dates. Remove outbreak days with fewer than 10 tornadoes.
+Filter on tornadoes to remove those not part of a large group. Group by group number and convective dates. Remove group days with fewer than 10 tornadoes.
 ```{r}
-OutDays.sfdf <- Tor.sfdf %>%
-  filter(outbreakNumber %in% Out.sfdf$outbreakNumber) %>%
-  group_by(outbreakNumber, cDate) %>%
+BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
+  filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
+  group_by(groupNumber, cDate) %>%
   summarize(nT = n(),
-            OutbreakDayTotalED = sum(ED),
-            OutbreakDayMaxED = max(ED),
-            OutbreakDayMeanED = mean(ED),
-            eDate = first(eDate)) %>%
+            GroupDayTotalED = sum(ED),
+            GroupDayMaxED = max(ED),
+            GroupDayMeanED = mean(ED),
+            cDate1 = first(cDate)) %>%
   filter(nT >= 10) %>%
-  mutate(Year = year(eDate),
-         Mo = month(eDate),
-         Month = format(eDate, "%m"), # this is needed to preserve the leading zeros
-         Day = format(eDate, "%d"))
+  mutate(Year = year(cDate1),
+         Mo = month(cDate1),
+         Month = format(cDate1, "%m"), # this is needed to preserve the leading zeros
+         Day = format(cDate1, "%d"))
 ```
 
-Table the number of days per outbreak. Also look at the day counts by year and month.
-```{r}
-table(table(OutDays.sfdf$outbreakNumber))
+There are 399 big days in large groups. These will be used for further analysis and modeling.
 
-table(OutDays.sfdf$Year)
-table(OutDays.sfdf$Month)
+Table the number of days per group. Also look at the day counts by year and month.
+```{r}
+table(table(BigDaysInLargeGroups.sfdfT$groupNumber))
+table(BigDaysInLargeGroups.sfdfT$Year)
+table(BigDaysInLargeGroups.sfdfT$Month)
 ```
 
-Individual tornado days within outbreaks.
+Top 10 biggest tornado days within the largest groups.
 ```{r}
-OutDays.sfdf %>%
+BigDaysInLargeGroups.sfdfT %>%
   top_n(n = 10, nT) %>%
   arrange(desc(nT))
 ```
 
-Plot the centroid for each outbreak day and size the aesthetic by the number of tornadoes.
+Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (intensity).
 ```{r}
-outbreakDayCentroids <- st_centroid(OutDays.sfdf)
-outbreakDayCentroids$nT <- OutDays.sfdf$nT
-outbreakDayCentroids <- as.data.frame(outbreakDayCentroids)
-outbreakDayCentroids <- as(st_sf(outbreakDayCentroids), "Spatial")
+groupDayCentroids.sfdfT <- st_centroid(BigDaysInLargeGroups.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups.sfdfT))
+groupDayCentroids.sfdfT$groupIntensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
+```
 
-tm_shape(outbreakDayCentroids) +
+Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
+```{r}
+tm_shape(groupDayCentroids.sfdfT) +
   tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
 tm_shape(stateBorders) + 
   tm_borders() +
@@ -277,78 +276,19 @@ tm_shape(stateBorders) +
   tm_layout(legend.bg.color = "white", legend.text.size = .75)
 ```
 
-Outbreak day centers do not have an obvious population bias.
+Tornado group day centers do not have an obvious population bias.
 
-Estimate various spatial statistics on the outbreak days.
+Time series graphs
 ```{r}
-library(spatstat)
-library(rgeos)
-library(maptools)
-
-n <- dim(OutDays.sfdf)[1] # number of outbreak days
-```
-
-Create an ID column for the for loop so that you do not repeat convective days. If you looped through outbreak days, there are several outbreaks with tornadoes on the same outbreak day. So a unique identifier is needed with the outbreak number and the convective day. 
-```{r}
-OutDays.sfdf <- OutDays.sfdf %>%
-  mutate(ID = paste0(outbreakNumber, gsub("-", "",cDate)))
-```
-
-Loop over all outbreak days.  See Rspatialcourse_CMIS_PDF Standard.pdf for interpretations of kappa, mu, and sigma. Kappa is the mean intensity of the inhomogeneous parent process and mu is the mean number of offsprings.
-```{r}
-Area <- numeric()
-Intensity <- numeric()
-Kappa <- numeric()
-Scale <- numeric()
-Mu <- numeric()
-
-IDs <- OutDays.sfdf$ID
-
-for(i in IDs){
- print(i)
- sfdf <- Tor.sfdf %>%
-   filter(ID == i)
- sldf <- as(sfdf, "Spatial")
- hull <- gConvexHull(sldf)
- 
- Area <- c(Area, gArea(hull)/10^6)  # Outbreak day area in square kilometers.
- 
- T.psp <- as.psp(sldf)
- W <- as.owin(hull)
- T.psp <- T.psp[W]
- T.ppp <- endpoints.psp(T.psp, which = "first")
- T.ppp2 = rescale(T.ppp, s = 1000, unitname = "km")
- 
- model <- kppm(T.ppp2, trend = ~ 1, clusters = "Thomas")
- Mu <- c(Mu, summary(model)$mu)
- Kappa <- c(Kappa, summary(model)$clustpar[1])
- Scale <- c(Scale, summary(model)$clustpar[2])
- Intensity <- c(Intensity, intensity(T.ppp2))
-}
-
-OutDays.sfdf$Area <- Area
-OutDays.sfdf$Intensity <- Intensity
-OutDays.sfdf$Mu <- Mu
-OutDays.sfdf$Kappa <- Kappa
-OutDays.sfdf$Scale <- Scale
-```
-
-Tables/graphs
-```{r}
-OutDays.sfdf %>%
-  top_n(n = 10, "Scale") %>%
-  arrange(desc(Scale))
-
-OutDays.sfdf %>%
+groupDayCentroids.sfdfT %>%
   group_by(Year) %>%
-  summarize(avgInt = mean(Intensity),
-            avgMu = mean(Mu),
-            avgArea = mean(Area),
-            avgKappa = mean(Kappa),
-            avgScale = mean(Scale)) %>%
-  ggplot(., aes(x = Year, y = avgScale)) +
+  summarize(avgArea = mean(groupArea)) %>%
+  ggplot(., aes(x = Year, y = as.numeric(avgArea) / 10^10)) +
+    scale_y_continuous(limits = c(0, NA)) +
     geom_point() +
-    geom_smooth()
+    geom_smooth(method = lm) +
+    ylab("Group Area [100 sq. km]") +
+    theme_minimal()
 ```
 
 Get environmental data at 18Z (2p local) on the convective day. Try 00z on day after convective day (`eDate`). Also try this site https://rda.ucar.edu/datasets/ds608.0/
