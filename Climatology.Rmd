@@ -259,11 +259,11 @@ BigDaysInLargeGroups.sfdfT %>%
   arrange(desc(nT))
 ```
 
-Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (intensity).
+Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
 ```{r}
 groupDayCentroids.sfdfT <- st_centroid(BigDaysInLargeGroups.sfdfT)
 groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups.sfdfT))
-groupDayCentroids.sfdfT$groupIntensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
+groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
@@ -288,6 +288,16 @@ groupDayCentroids.sfdfT %>%
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Group Area [100 sq. km]") +
+    theme_minimal()
+
+groupDayCentroids.sfdfT %>%
+  group_by(Year) %>%
+  summarize(avgDensity = mean(groupDensity)) %>%
+  ggplot(., aes(x = Year, y = as.numeric(avgDensity) * 10^10)) +
+    scale_y_continuous(limits = c(0, NA)) +
+    geom_point() +
+    geom_smooth(method = lm) +
+    ylab("Group Density [Tornadoes/100 sq. km]") +
     theme_minimal()
 ```
 
