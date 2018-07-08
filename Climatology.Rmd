@@ -8,7 +8,7 @@ Spatial Analysis of Environmental Factors Related to Large Tornado Groups
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do the environmental characteristics of groups vary geographically?
+Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically?
 
 Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy? Which variable best explains worst-case group-level tornado energy?
 
@@ -91,16 +91,16 @@ Tor.sfdf <- Tor.sfdf %>%
   mutate(ED = EW3 * AreaPath)
 ```
 
-Determine tornadoes that are close to each other in space and time. First project the lat/lon geometry. See https://epsg.io/102004.  Then extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
+Determine the distance between tornadoes in space and time. Use a planar projection not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
 ```{r}
 Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
 space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
 
-Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are comparable with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
 
-For comparison: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday events. For analysis we might want to consider each day in the multiday outbreak separately. As the value of the divisor increases cluster areas get larger.
+Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger.
 ```{r}
 ds <- dist(space) / 10
 dt <- dist(time)
@@ -299,124 +299,4 @@ groupDayCentroids.sfdfT %>%
     geom_smooth(method = lm) +
     ylab("Group Density [Tornadoes/100 sq. km]") +
     theme_minimal()
-```
-
-Get environmental data at 18Z (2p local) on the convective day. Try 00z on day after convective day (`eDate`). Also try this site https://rda.ucar.edu/datasets/ds608.0/
-```{r}
-library(lubridate)
-df <- as.data.frame(OutDays.sfdf) %>%
-  mutate(Yr = Year,
-         YrMo = paste0(Year, Month),
-         YrMoDa = paste0(YrMo, Day),
-         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_0000_000.grb"),
-         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2))
-```
-
-Remove 2015 and 2016 years!
-```{r}
-df <- df %>%
-  filter(Yr != 2015, 
-         Yr != 2016,
-         cDate != "2014-10-13")
-```
-
-Download grib files
-```{r}
-len <- dim(df)[1]
-for(i in 1:len){
-  download.file(df$slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
-}
-```
-
-Read grib files as rasters and extract corresponding HLCY and CAPE. Start by getting the convex hull around the tracks and transforming the coordinate reference system to match that of the raster grids.
-```{r}
-OutDaysHulls.sfdf <- st_convex_hull(OutDays.sfdf)
-OutDaysHulls.sfdf <- st_transform(OutDaysHulls.sfdf, crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs") # To match the crs of the grb rasters
-```
-
-Remove these years and cDate because no NARR data is available. 
-```{r}
-OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
-  filter(Year != 2015, 
-         Year != 2016,
-         cDate != "2014-10-13")
-```
-
-Then loop over all outbreak days extracting the average CAPE and HLCY within the hulls.
-```{r}
-library(raster)
-aCAPE <- numeric()
-aHLCY <- numeric()
-aCIN <- numeric()
-aLFTX <- numeric()
-
-OutDaysHulls.sfdf <- as.data.frame(OutDaysHulls.sfdf)
-OutDaysHulls.sfdf <- st_sf(OutDaysHulls.sfdf)
-
-#Something funky with 1995-05-09 -- highest it goes to is 129...so it is changing all of the layers to 129 producing an error.
-
-OutDaysHulls.sfdf <- OutDaysHulls.sfdf %>%
-  filter(ID != "27819950509")
-df <- df %>%
-  filter(ID != "27819950509")
-
-len <- dim(df)[1]
-
-for(i in 1:len){
- print(i)
- 
- rb <- brick(paste0("NARRdata", i, ".grb"))
- CAPE.rl <- raster(rb, layer = 375)
- HLCY.rl <- raster(rb, layer = 323)
- CIN.rl <- raster(rb, layer = 376)
- LFTX.rl <- raster(rb, layer = 314)
- 
- aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
- aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
- aCIN <- c(aCIN, mean(raster::extract(CIN.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
- aLFTX <- c(aLFTX, mean(raster::extract(LFTX.rl, OutDaysHulls.sfdf[i, ], fun = mean)))
-
-}
-```
-
-
-Model the relationships
-```{r}
-len <- dim(OutDaysHulls.sfdf)[1]
-
-sfdf <- OutDaysHulls.sfdf[1:len, ]
-sfdf$aCAPE <- aCAPE
-sfdf$aHLCY <- aHLCY
-sfdf$aCIN <- aCIN
-sfdf$aLFTX <- aLFTX
-```
-
-```{r}
-sfdf %>%
-  group_by(Mo) %>%
-  summarize(mED = mean(OutbreakDayTotalED)/10^12,
-            nT = sum(nT))
-```
-
-Models
-```{r}
-library(lme4)
-model0 <- lmer(log(OutbreakDayTotalED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
-summary(model0)
-
-model0a <- lmer(log(OutbreakDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), weights = nT, data = sfdf)
-summary(model0a)
-
-model1 <- lmer(log(OutbreakDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
-summary(model1)
-
-model2 <- lmer(log(OutbreakDayMaxED) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
-summary(model2)
-
-model4 <- lmer(log(nT) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
-summary(model4)
-```
-
-```{r}
-summary(lm(log(OutbreakDayTotalED) ~ aHLCY + aCAPE + aCIN, data = sfdf[sfdf$Mo == 4, ]))
 ```
