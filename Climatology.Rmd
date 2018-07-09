@@ -8,9 +8,7 @@ Spatial Analysis of Environmental Factors Related to Large Tornado Groups
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically?
-
-Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy? Which variable best explains worst-case group-level tornado energy?
+Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy?
 
 Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties.
 
@@ -19,6 +17,8 @@ This analysis is done at the scale of tornado groups rather than at regional or 
 To minimize controvery related to terminology tornado 'group' is used to refer to tornadoes occurring close together in space and time. The word 'outbreak' has a specific definition that is not strictly adhered to here. 
 
 The analysis and modeling makes use of the Storm Prediction Center's tornado data set.
+
+## Part 1: Tornado data
 
 Set working directory and load packages.
 ```{r}
@@ -234,13 +234,12 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   summarize(nT = n(),
             GroupDayTotalED = sum(ED),
             GroupDayMaxED = max(ED),
-            GroupDayMeanED = mean(ED),
-            cDate1 = first(cDate)) %>%
+            GroupDayMeanED = mean(ED)) %>%
   filter(nT >= 10) %>%
-  mutate(Year = year(cDate1),
-         Mo = month(cDate1),
-         Month = format(cDate1, "%m"), # this is needed to preserve the leading zeros
-         Day = format(cDate1, "%d"))
+  mutate(Year = year(cDate),
+         Mo = month(cDate),
+         Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
+         Day = format(cDate, "%d"))
 ```
 
 There are 399 big days in large groups. These will be used for further analysis and modeling.
@@ -299,4 +298,21 @@ groupDayCentroids.sfdfT %>%
     geom_smooth(method = lm) +
     ylab("Group Density [Tornadoes/100 sq. km]") +
     theme_minimal()
+```
+
+## Part 2 Environmental data
+
+Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/
+```{r, eval=FALSE}
+library(lubridate)
+df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
+  filter(Year < 2015) %>%
+  filter(Mo < 10 & Year == 2014) %>%
+  mutate(Yr = Year,
+         YrMo = paste0(Year, Month),
+         YrMoDa = paste0(YrMo, Day),
+         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_1800_000.grb"),
+         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2)) %>%
+  dplyr::select(slug)
+slug <- df$slug
 ```
