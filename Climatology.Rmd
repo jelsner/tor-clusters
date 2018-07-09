@@ -300,14 +300,13 @@ groupDayCentroids.sfdfT %>%
     theme_minimal()
 ```
 
-## Part 2 Environmental data
+## Part 2: Environmental data
 
-Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/
+Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
 ```{r, eval=FALSE}
 library(lubridate)
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
-  filter(Year < 2015) %>%
-  filter(Mo < 10 & Year == 2014) %>%
+  filter(Year <= 2014 & Mo < 10) %>%
   mutate(Yr = Year,
          YrMo = paste0(Year, Month),
          YrMoDa = paste0(YrMo, Day),
@@ -315,4 +314,11 @@ df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
          slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2)) %>%
   dplyr::select(slug)
 slug <- df$slug
+```
+
+Download the grib files.
+```{r, eval=FALSE}
+for(i in 6:6){
+    download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
+    }
 ```
