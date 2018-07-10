@@ -340,9 +340,63 @@ df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
 slug <- df$slug
 ```
 
-Download the grib files.
+Download the grib files. Note: for the first run we only get the first 50 days.
 ```{r, eval=FALSE}
-for(i in 8:50){
+for(i in 1:50){
     download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
     }
+```
+
+Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average CAPE and helicity within each of the big days in large groups hulls.
+```{r, eval=FALSE}
+library(raster)
+aCAPE <- numeric()
+aHLCY <- numeric()
+aCIN <- numeric()
+
+for(i in 1:50){
+  print(i)
+  rb <- brick(paste0("NARRdata", i, ".grb"))
+  CAPE.rl <- raster(rb, layer = 375)
+  HLCY.rl <- raster(rb, layer = 323)
+  CIN.rl <- raster(rb, layer = 376)
+  aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, BigDaysInLargeGroups.sfdfT[i, ], fun = mean)))
+  aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, BigDaysInLargeGroups.sfdfT[i, ], fun = mean)))
+  aCIN <- c(aCIN, mean(raster::extract(CIN.rl, BigDaysInLargeGroups.sfdfT[i, ], fun = mean)))
+}
+```
+
+Add environmental data values to the group day means data frame.
+```{r, eval=FALSE}
+sfdf <- BigDaysInLargeGroups.sfdfT[1:50, ]
+sfdf$aCAPE <- aCAPE
+sfdf$aHLCY <- aHLCY
+sfdf$aCIN <- aCIN
+```
+
+Random effects.
+```{r, eval=FALSE}
+sfdf %>%
+   group_by(Mo) %>%
+   summarize(mED = mean(GroupDayTotalED)/10^12,
+             nT = sum(nT))
+```
+
+Models
+```{r, eval=FALSE}
+library(lme4)
+model0 <- lmer(log(GroupDayTotalED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model0)
+
+model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), weights = nT, data = sfdf)
+summary(model0a)
+
+model1 <- lmer(log(GroupDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
+summary(model1)
+
+model2 <- lmer(log(GroupDayMaxED) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model2)
+
+model3 <- lmer(log(GroupDayCas) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+summary(model3)
 ```
