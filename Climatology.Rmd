@@ -10,7 +10,7 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy?
 
-Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties.
+Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
 
 This analysis is done at the scale of tornado groups rather than at regional or local scales. 
 
@@ -56,7 +56,7 @@ Tor.sfdf <- Tor.sfdf %>%
          Hour = hour(DateTime),
          Year = year(DateTime),
          cDateTime = DateTime - as.difftime(6, unit = "hours"),
-         cDate = as.Date(cDateTime),
+         cDate = as.Date(as_datetime(ifelse(Hour < 6, (DateTime - 86400), cDateTime), tz = Sys.timezone())),
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
          Width = wid * .9144,
@@ -91,7 +91,7 @@ Tor.sfdf <- Tor.sfdf %>%
   mutate(ED = EW3 * AreaPath)
 ```
 
-Determine the distance between tornadoes in space and time. Use a planar projection not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
+Determine the distance between tornadoes in space and time. Use a projection not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix of numbers, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
 ```{r}
 Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
 space <- st_coordinates(Tor.sfdfT)
@@ -234,15 +234,24 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   summarize(nT = n(),
             GroupDayTotalED = sum(ED),
             GroupDayMaxED = max(ED),
-            GroupDayMeanED = mean(ED)) %>%
+            GroupDayMeanED = mean(ED),
+            GroupDayCas = sum(cas),
+            GroupDayFat = sum(fat)) %>%
   filter(nT >= 10) %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
          Day = format(cDate, "%d"))
+dim(BigDaysInLargeGroups.sfdfT)
 ```
 
-There are 399 big days in large groups. These will be used for further analysis and modeling.
+There are 410 big days in large groups. These will be used for further analysis and modeling.
+
+Pecentage of all casualties and fatalities occurring on big days in large outbreaks.
+```{r}
+sum(BigDaysInLargeGroups.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
+sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
+```
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
@@ -250,6 +259,8 @@ table(table(BigDaysInLargeGroups.sfdfT$groupNumber))
 table(BigDaysInLargeGroups.sfdfT$Year)
 table(BigDaysInLargeGroups.sfdfT$Month)
 ```
+
+71% of all big days in large groups occur during April, May, and June.
 
 Top 10 biggest tornado days within the largest groups.
 ```{r}
@@ -300,6 +311,19 @@ groupDayCentroids.sfdfT %>%
     theme_minimal()
 ```
 
+Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+```{r}
+BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
+BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+
+tm_shape(BigDaysInLargeGroups.sfdfT) +
+  tm_polygons(alpha = .1) + 
+tm_shape(stateBorders, is.master = TRUE) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() 
+```
+
 ## Part 2: Environmental data
 
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
@@ -318,7 +342,7 @@ slug <- df$slug
 
 Download the grib files.
 ```{r, eval=FALSE}
-for(i in 6:6){
+for(i in 8:50){
     download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
     }
 ```
