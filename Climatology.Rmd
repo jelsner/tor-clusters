@@ -339,10 +339,21 @@ counties <- st_transform(counties,
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
+Convert counties and BigDaysInLargeGroups.sfdfT to Spatial objects
 ```{r}
 counties <- as(counties, "Spatial")
 hulls <- as(BigDaysInLargeGroups.sfdfT, "Spatial")
 ```
+
+See how many outbreaks occur in each county across the US. Use the `gIntersects` function from the **rgeos** package. Set the rownames to the names of the counties. Create a gIvalues column where each value is the Sum of "TRUE" values in teh gI df. 
+```{r}
+gI <- gIntersects(hulls, counties, byid=TRUE)
+rownames(gI) <- counties$name
+colnames(gI) <- hulls$cDate
+
+counties$gIvalues = rowSums(gI == "TRUE")
+```
+
 
 ## Part 2: Environmental data
 
