@@ -325,10 +325,16 @@ tm_shape(stateBorders, is.master = TRUE) +
   tm_compass() + tm_scale_bar() 
 ```
 
-Save the states and counties from the USAboundaries package. 
+Save the states and counties from the `USAboundaries` package. 
 ```{r}
 us.sf <- us_states()
 counties <- us_counties()
+```
+
+Set the CRS for counties to match the environmental data raster grids and the BigDaysInLargeGroups.sfdfT
+```{r}
+counties <- st_transform(counties, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
 
