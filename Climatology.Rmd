@@ -27,6 +27,7 @@ library(lubridate)
 library(sf)
 library(tmap)
 library(USAboundaries)
+library(rgeos)
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
