@@ -314,6 +314,8 @@ groupDayCentroids.sfdfT %>%
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
+BigDaysInLargeGroups.sfdfT<-as.data.frame(BigDaysInLargeGroups.sfdfT)
+BigDaysInLargeGroups.sfdfT<-st_sf(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
@@ -337,6 +339,10 @@ counties <- st_transform(counties,
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
+```{r}
+counties <- as(counties, "Spatial")
+hulls <- as(BigDaysInLargeGroups.sfdfT, "Spatial")
+```
 
 ## Part 2: Environmental data
 
