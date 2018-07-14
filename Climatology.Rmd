@@ -354,6 +354,13 @@ colnames(gI) <- hulls$cDate
 counties$gIvalues = rowSums(gI == "TRUE")
 ```
 
+Remove Alaska, Hawaii, and Puerto Rico from the states df
+```{r}
+states <- us.sf %>% 
+  filter(stusps != "AK",
+         stusps != "PR",
+         stusps != "HI")
+```
 
 ## Part 2: Environmental data
 
