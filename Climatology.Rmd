@@ -325,6 +325,13 @@ tm_shape(stateBorders, is.master = TRUE) +
   tm_compass() + tm_scale_bar() 
 ```
 
+Save the states and counties from the USAboundaries package. 
+```{r}
+us.sf <- us_states()
+counties <- us_counties()
+```
+
+
 ## Part 2: Environmental data
 
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
