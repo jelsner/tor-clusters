@@ -362,6 +362,24 @@ states <- us.sf %>%
          stusps != "HI")
 ```
 
+Create a map of the outbreak density in each county in the United States. Color by the gIvalues column. 
+```{r}
+tm_shape(states) +
+  tm_borders() +
+tm_shape(counties) +
+   tm_polygons("gIvalues",
+              title = "Number of Outbreaks",
+              palette = "Reds", n = 20) +
+  tm_borders(col = "grey") +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_World(legend.position = c("left", "bottom"),
+                  attr.position = c("left", "bottom"),
+                  inner.margins = c(.025, .025, .075, .025)) +
+  tm_style_white("Outbreak Density by County",
+                 frame = TRUE, title.size = 1.5, title.position = c("center", "TOP"))
+```
+
 ## Part 2: Environmental data
 
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
