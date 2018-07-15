@@ -10,13 +10,13 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy?
 
-Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
+Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties. In fact, 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
 
-This analysis is done at the scale of tornado groups rather than at regional or local scales. 
+This analysis is done at the scale of tornado groups rather than at local scales. 
 
-To minimize controvery related to terminology tornado 'group' is used to refer to tornadoes occurring close together in space and time. The word 'outbreak' has a specific definition that is not strictly adhered to here. 
+To minimize controversy related to terminology tornado 'group' is used to refer to tornadoes occurring together in space and time. The word 'outbreak' has a specific definition that is not strictly applied here. 
 
-The analysis and modeling makes use of the Storm Prediction Center's tornado data set.
+Analysis and modeling makes use of the Storm Prediction Center's tornado data set.
 
 ## Part 1: Tornado data
 
@@ -159,6 +159,8 @@ Groups.sfdfT <- Tor.sfdfT %>%
   filter(nT >= 30)
 dim(Groups.sfdfT)
 ```
+
+Over the period 1994-2017 there are 198 tornado groups with at least 30 tornadoes.
 
 Make some tables: Top 10 groups by number of tornadoes, energy dissipation, and duration.
 ```{r}
@@ -385,7 +387,7 @@ sfdf %>%
 Models
 ```{r, eval=FALSE}
 library(lme4)
-model0 <- lmer(log(GroupDayTotalED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
 summary(model0)
 
 model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), weights = nT, data = sfdf)
