@@ -27,6 +27,7 @@ library(lubridate)
 library(sf)
 library(tmap)
 library(USAboundaries)
+library(rgeos)
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
@@ -315,6 +316,8 @@ groupDayCentroids.sfdfT %>%
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
+BigDaysInLargeGroups.sfdfT<-as.data.frame(BigDaysInLargeGroups.sfdfT)
+BigDaysInLargeGroups.sfdfT<-st_sf(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
@@ -324,6 +327,59 @@ tm_shape(BigDaysInLargeGroups.sfdfT) +
 tm_shape(stateBorders, is.master = TRUE) + 
   tm_borders() +
   tm_compass() + tm_scale_bar() 
+```
+
+Save the states and counties from the `USAboundaries` package. 
+```{r}
+us.sf <- us_states()
+counties <- us_counties()
+```
+
+Set the CRS for counties to match the environmental data raster grids and the BigDaysInLargeGroups.sfdfT
+```{r}
+counties <- st_transform(counties, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+Convert counties and BigDaysInLargeGroups.sfdfT to Spatial objects
+```{r}
+counties <- as(counties, "Spatial")
+hulls <- as(BigDaysInLargeGroups.sfdfT, "Spatial")
+```
+
+See how many outbreaks occur in each county across the US. Use the `gIntersects` function from the **rgeos** package. Set the rownames to the names of the counties. Create a gIvalues column where each value is the Sum of "TRUE" values in teh gI df. 
+```{r}
+gI <- gIntersects(hulls, counties, byid=TRUE)
+rownames(gI) <- counties$name
+colnames(gI) <- hulls$cDate
+
+counties$gIvalues = rowSums(gI == "TRUE")
+```
+
+Remove Alaska, Hawaii, and Puerto Rico from the states df
+```{r}
+states <- us.sf %>% 
+  filter(stusps != "AK",
+         stusps != "PR",
+         stusps != "HI")
+```
+
+Create a map of the outbreak density in each county in the United States. Color by the gIvalues column. 
+```{r}
+tm_shape(states) +
+  tm_borders() +
+tm_shape(counties) +
+   tm_polygons("gIvalues",
+              title = "Number of Outbreaks",
+              palette = "Reds", n = 20) +
+  tm_borders(col = "grey") +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_World(legend.position = c("left", "bottom"),
+                  attr.position = c("left", "bottom"),
+                  inner.margins = c(.025, .025, .075, .025)) +
+  tm_style_white("Outbreak Density by County",
+                 frame = TRUE, title.size = 1.5, title.position = c("center", "TOP"))
 ```
 
 ## Part 2: Environmental data
