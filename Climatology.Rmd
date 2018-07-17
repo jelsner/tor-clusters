@@ -44,7 +44,7 @@ Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1
 ```{r}
 Tor.sfdf <- Tor.sfdf %>%
   filter(yr >= 1994, #start in 1994 because of comprehensive radar
-         st != c("AK", "PR", "HI")) %>% #remove tornadoes occurring in Alaska, Puerto Rico, and Hawaii
+         !st %in% c("AK", "PR", "HI")) %>% #remove tornadoes occurring in AK, PR, and HI
   mutate(mag = ifelse(mag == -9 & len <= 5, 0, mag),
          mag = ifelse(mag == -9 & len > 5, 1, mag))
 ```
