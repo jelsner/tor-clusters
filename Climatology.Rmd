@@ -1,16 +1,17 @@
 ---
-output: html_document
+title: "Spatial Analysis of Environmental Factors Related to Large Tornado Groups"
+author: "Zoe Shroder"
+date: "7/31/2018"
+output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
-Spatial Analysis of Environmental Factors Related to Large Tornado Groups
-=========================================================================
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
 Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy?
 
-Why is this important? Tornado groups represent the most concentrated large-scale risk for damage and casualties. In fact, 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
+Why is this important? Tornado groups represent a concentrated large-scale risk for damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
 
 This analysis is done at the scale of tornado groups rather than at local scales. 
 
