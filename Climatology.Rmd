@@ -380,6 +380,24 @@ tm_shape(counties.sf) +
                    inner.margins = c(.05, .05, .1, .05))
 ```
 
+Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
+```{r}
+df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
+  mutate(lTED = log(GroupDayTotalED),
+         plot_date = as.Date(format(cDate, "2012-%m-%d")))
+ggplot(df, aes(y = Year)) +
+  geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
+  scale_size(range = c(1, 5), name = "Energy\nDissipation") +
+#  scale_size_area(max_size = 10, breaks = seq(21, 34, by = 3), labels = c("1", "7", "55", "403", "XXX"), name = "Energy\nDissipation") +
+  scale_x_date(date_breaks = "months", date_labels = "%b") +
+  scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
+  xlab("") +  ylab("") +
+  geom_point(aes(size = lTED, x = plot_date), color = "gray", alpha = .5) +
+  theme_minimal()
+```
+
+
+
 ## Part 2: Environmental data
 
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
