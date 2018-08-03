@@ -9,9 +9,9 @@ editor_options:
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level average tornado energy?
+Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level tornado energy?
 
-Why is this important? Tornado groups represent a concentrated large-scale risk for damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
+Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
 
 This analysis is done at the scale of tornado groups rather than at more local scales. 
 
@@ -41,11 +41,11 @@ Tor.sfdf <- st_as_sf(Tor.spdf)
 st_crs(Tor.sfdf) <- 4326
 ```
 
-Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. For missing EF ratings use the modification rules defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
+Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. The year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
 ```{r}
 Tor.sfdf <- Tor.sfdf %>%
-  filter(yr >= 1994, #start in 1994 because of comprehensive radar
-         !st %in% c("AK", "PR", "HI")) %>% #remove tornadoes occurring in AK, PR, and HI
+  filter(yr >= 1994,
+         !st %in% c("AK", "PR", "HI")) %>%
   mutate(mag = ifelse(mag == -9 & len <= 5, 0, mag),
          mag = ifelse(mag == -9 & len > 5, 1, mag))
 ```
@@ -104,12 +104,12 @@ time <- Tor.sfdf$DateTime
 
 Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
 
-Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger.
+Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r}
 ds <- dist(space) / 10
 dt <- dist(time)
 dst <- ds + dt
-rm(ds, dt) # helps control memory allocation
+rm(ds, dt)
 ```
 
 Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
@@ -125,9 +125,6 @@ tree <- hclust(dst, method = "single")
 groupNumber <- as.integer(cutree(tree, h = 100000))
 proc.time() - stime
 ```
-
- user  system elapsed 
- 21.256   1.677  22.983 
 
 Add the group number to each tornado. 
 ```{r}
@@ -164,7 +161,7 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
-Over the period 1994-2017 there are 198 tornado groups with at least 30 tornadoes.
+Over the period 1994-2017 there were 198 tornado groups with at least 30 tornadoes.
 
 Make some tables: Top 10 groups by number of tornadoes, energy dissipation, and duration.
 ```{r}
@@ -185,17 +182,18 @@ Groups.sfdfT %>%
   arrange(desc(nD))
 ```
 
-Map the locations (start points) of the top 12 tornado groups by energy dissipation. First select the top 12 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number.
+Map the locations (start points) of the top 25 tornado groups by energy dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
 ```{r}
 df <- as.data.frame(Groups.sfdfT) %>%
-  top_n(n = 12, wt = GroupTotalED)
+  top_n(n = 25, wt = GroupTotalED) %>%
+  arrange(GroupTotalED)
 
 sfdf <- Tor.sfdfT %>%
    filter(groupNumber %in% df$groupNumber) %>%
    mutate(EF = factor(mag))
 
 sfdf2 <- left_join(sfdf, df, by = "groupNumber") %>%
-  arrange(desc(GroupTotalED))
+  arrange(GroupTotalED, EF)
 ```
 
 Get state borders and use the `tm_shape()` function.
@@ -203,14 +201,13 @@ Get state borders and use the `tm_shape()` function.
 sts <- state.name[!state.name %in% c("Alaska", "Hawaii")]
 stateBorders <- us_states(states = sts)
 
-tm_shape(sfdf2) +
-  tm_facets(by = "Name", ncol = 3)  +
-  tm_symbols(col = "EF", palette = "Reds", n = 6) +
-  tm_credits(text = df$Name2, position = c("left", "bottom"), bg.color = "white") +
 tm_shape(stateBorders) + 
   tm_borders(col = "grey") +
-#  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.outside = TRUE)
+  tm_layout(legend.outside = TRUE) +
+  tm_shape(sfdf2) +
+  tm_facets(by = "GroupTotalED", ncol = 5)  +
+  tm_symbols(col = "EF", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
+  tm_layout(panel.labels = paste(df$Name2, df$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
 ```
 
 Distribution of the number of days.
