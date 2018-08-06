@@ -229,7 +229,7 @@ as.data.frame(Groups.sfdfT) %>%
   mutate(prop = prop.table(n))
 ```
 
-Filter on tornadoes to remove those not part of a large group. Group by group number and convective dates. Remove group days with fewer than 10 tornadoes.
+Filter on tornadoes to remove those not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
 BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
@@ -250,7 +250,7 @@ dim(BigDaysInLargeGroups.sfdfT)
 
 There are 395 big days in large groups. These will be used for further analysis and modeling.
 
-Pecentage of all casualties and fatalities occurring on big days in large outbreaks.
+Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
 sum(BigDaysInLargeGroups.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
 sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
@@ -316,21 +316,18 @@ groupDayCentroids.sfdfT %>%
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
-#BigDaysInLargeGroups.sfdfT<-as.data.frame(BigDaysInLargeGroups.sfdfT)
-#BigDaysInLargeGroups.sfdfT<-st_sf(BigDaysInLargeGroups.sfdfT)
-
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 
 tm_shape(BigDaysInLargeGroups.sfdfT) +
   tm_polygons(alpha = .1) + 
-tm_shape(stateBorders, is.master = TRUE) + 
+tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders() +
   tm_compass() + tm_scale_bar() 
 ```
 
-Obtain the state and county boundaries from the **USAboundaries** package. 
+Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
 library(USAboundaries)
 states.sf <- us_states()
@@ -380,12 +377,11 @@ tm_shape(counties.sf) +
 Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
-  mutate(lTED = log(GroupDayTotalED),
+  mutate(lTED = log10(GroupDayTotalED),
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
 ggplot(df, aes(y = Year)) +
   geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
-  scale_size(range = c(1, 5), name = "Energy\nDissipation") +
-#  scale_size_area(max_size = 10, breaks = seq(21, 34, by = 3), labels = c("1", "7", "55", "403", "XXX"), name = "Energy\nDissipation") +
+  scale_size(range = c(1, 5), name = "Energy\nDissipation (GW)", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
   scale_x_date(date_breaks = "months", date_labels = "%b") +
   scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
   xlab("") +  ylab("") +
@@ -398,7 +394,7 @@ ggplot(df, aes(y = Year)) +
 ## Part 2: Environmental data
 
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
-```{r, eval=FALSE}
+```{r}
 library(lubridate)
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
   filter(Year <= 2014 & Mo < 10) %>%
@@ -411,9 +407,9 @@ df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
 slug <- df$slug
 ```
 
-Download the grib files. Note: for the first run we only get the first 50 days.
-```{r, eval=FALSE}
-for(i in 1:50){
+Download the grib files.
+```{r}
+for(i in 1:length(slug)){
     download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
     }
 ```
