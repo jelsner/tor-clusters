@@ -1,5 +1,5 @@
 ---
-title: "Spatial Analysis of Environmental Factors Related to Large Tornado Groups"
+title: "Environmental Factors Related to the Most Prolific Tornado Days Within Large Tornado Groups"
 author: "Zoe Shroder"
 date: "7/31/2018"
 output: github_notebook
@@ -229,7 +229,7 @@ as.data.frame(Groups.sfdfT) %>%
   mutate(prop = prop.table(n))
 ```
 
-Filter on tornadoes to remove those not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
+Filter tornadoes to remove those not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
 BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
@@ -418,6 +418,9 @@ library(raster)
 aCAPE <- numeric()
 aHLCY <- numeric()
 aCIN <- numeric()
+mCAPE <- numeric()
+mHLCY <- numeric()
+mCIN <- numeric()
 
 for(i in 1:length(slug)){
   print(i)
@@ -428,40 +431,60 @@ for(i in 1:length(slug)){
   aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = mean)))
   aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = mean)))
   aCIN <- c(aCIN, mean(raster::extract(CIN.rl, df[i, ], fun = mean)))
+  mCAPE <- c(mCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = max)))
+  mHLCY <- c(mHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = max)))
+  mCIN <- c(mCIN, mean(raster::extract(CIN.rl, df[i, ], fun = min)))
 }
 ```
 
 Add environmental data values to the group day means data frame.
-```{r, eval=FALSE}
-sfdf <- BigDaysInLargeGroups.sfdfT[1:50, ]
-sfdf$aCAPE <- aCAPE
-sfdf$aHLCY <- aHLCY
-sfdf$aCIN <- aCIN
+```{r}
+df$aCAPE <- aCAPE
+df$aHLCY <- aHLCY
+df$aCIN <- aCIN
+df$mCAPE <- mCAPE
+df$mHLCY <- mHLCY
+df$mCIN <- mCIN
 ```
 
 Random effects.
-```{r, eval=FALSE}
-sfdf %>%
-   group_by(Mo) %>%
-   summarize(mED = mean(GroupDayTotalED)/10^12,
-             nT = sum(nT))
+```{r}
+df %>%
+  group_by(Mo) %>%
+  summarize(mED = mean(GroupDayTotalED)/10^12,
+            nT = sum(nT))
+df %>%
+  group_by(Yr) %>%
+  summarize(annualMeanCAPE = mean(aCAPE),
+            annualMeanCAPEm = mean(mCAPE),
+            annualMeanCIN = mean(aCIN),
+            annualMeanCINm = mean(mCIN),
+            annualMeanHLCY = mean(aHLCY),
+            annualMeanHLCYm = mean(mHLCY)
+            ) %>%
+  ggplot(., aes(x = Yr, y = annualMeanHLCY)) +
+    scale_y_continuous(limits = c(0, NA)) +
+    geom_point() +
+    geom_smooth(method = lm) +
+    ylab("Annual Mean Group Environment [J/kg]") +
+    theme_minimal()
 ```
 
 Models
-```{r, eval=FALSE}
+```{r}
 library(lme4)
-model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), data = df)
 summary(model0)
 
-model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), weights = nT, data = sfdf)
+model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + (1|Mo), weights = nT, data = df)
 summary(model0a)
 
-model1 <- lmer(log(GroupDayTotalED) ~ scale(aCAPE) * scale(aCIN) + (scale(aHLCY)|Mo), data = sfdf)
+model0b <- lmer(log(GroupDayMaxED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + (1|Mo), weights = nT, data = df)
+summary(model0b)
+
+model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model1)
 
-model2 <- lmer(log(GroupDayMaxED) ~  scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
+model2 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + (1 | Mo), weights = nT, data = df)
 summary(model2)
-
-model3 <- lmer(log(GroupDayCas) ~ scale(aHLCY) + scale(aCAPE) * scale(aCIN) + (1|Mo), data = sfdf)
-summary(model3)
 ```
