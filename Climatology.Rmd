@@ -1,5 +1,5 @@
 ---
-title: "Environmental Factors Related to the Most Prolific Tornado Days Within Large Tornado Groups"
+title: "Environmental Factors Related Tornado Energy on the Most Prolific Tornado Days in the Largest Tornado Groups"
 author: "Zoe Shroder"
 date: "7/31/2018"
 output: github_notebook
@@ -412,7 +412,7 @@ for(i in 1:length(slug)){
     }
 ```
 
-Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average CAPE and helicity within each of the big days in large groups hulls.
+Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.
 ```{r}
 library(raster)
 aCAPE <- numeric()
@@ -453,6 +453,7 @@ df %>%
   group_by(Mo) %>%
   summarize(mED = mean(GroupDayTotalED)/10^12,
             nT = sum(nT))
+
 df %>%
   group_by(Yr) %>%
   summarize(annualMeanCAPE = mean(aCAPE),
@@ -462,8 +463,9 @@ df %>%
             annualMeanHLCY = mean(aHLCY),
             annualMeanHLCYm = mean(mHLCY)
             ) %>%
-  ggplot(., aes(x = Yr, y = annualMeanHLCY)) +
-    scale_y_continuous(limits = c(0, NA)) +
+  mutate(CAPECIN = scale(annualMeanCAPEm * annualMeanCINm)) %>%
+  ggplot(., aes(x = Yr, y = CAPECIN)) +
+    scale_y_continuous() +
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Annual Mean Group Environment [J/kg]") +
@@ -476,15 +478,42 @@ library(lme4)
 model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), data = df)
 summary(model0)
 
-model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + (1|Mo), weights = nT, data = df)
+model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model0a)
-
-model0b <- lmer(log(GroupDayMaxED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + (1|Mo), weights = nT, data = df)
-summary(model0b)
 
 model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model1)
 
 model2 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + (1 | Mo), weights = nT, data = df)
 summary(model2)
+```
+
+Observed versus predicted.
+```{r}
+df$preED = exp(predict(model0a))
+df$preCas = exp(predict(model2)) - 1
+```
+
+Energy dissipation
+```{r}
+ggplot(df, aes(x = GroupDayMeanED/10^9, y = preED/10^9, color = log10(GroupDayCas + 1))) +
+  scale_color_continuous(guide=FALSE) +
+         geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
+         geom_abline(slope = 1) +
+         scale_x_log10(limits = c(.1, 3000), breaks = c(.1, 1, 10, 100, 1000), labels = c(".1", "1", "10", "100", "1000")) +
+         scale_y_log10(limits = c(.1, 3000), breaks = c(.1, 1, 10, 100, 1000), labels = c(".1", "1", "10", "100", "1000")) +
+  ylab("Predicted Energy Dissipation (GW)") + xlab("Average Energy Dissipation (GW)") +
+  theme_minimal()
+```
+
+Casualties
+```{r}
+ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
+  scale_color_continuous(guide=FALSE) +
+         geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
+         geom_abline(slope = 1) +
+         scale_x_log10() +
+         scale_y_log10() +
+  ylab("Predicted Casualties") + xlab("Observed Casualties") +
+  theme_minimal()
 ```
