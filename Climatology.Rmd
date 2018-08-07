@@ -1,5 +1,5 @@
 ---
-title: "Environmental Factors Related Tornado Energy on the Most Prolific Tornado Days in the Largest Tornado Groups"
+title: "Environmental Factors Related to Accumulated Tornado Energy on the Most Prolific Days in the Largest `Outbreaks`"
 author: "Zoe Shroder"
 date: "7/31/2018"
 output: github_notebook
@@ -18,6 +18,8 @@ This analysis is done at the scale of tornado groups rather than at more local s
 To minimize controversy related to terminology tornado 'group' is used to refer to tornadoes occurring together in space and time. The word 'outbreak' has a specific definition that is not strictly applied here.
 
 Analysis and modeling makes use of the Storm Prediction Center's tornado data set.
+
+Introduce the term "Accumulated Tornado Energy (ATE)"
 
 ## Part 1: Tornado data
 
@@ -412,7 +414,7 @@ for(i in 1:length(slug)){
     }
 ```
 
-Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.
+Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls. https://nomads.ncdc.noaa.gov/data/narr/201104/20110427/narr-a_221_20110427_0000_000.inv
 ```{r}
 library(raster)
 aCAPE <- numeric()
@@ -421,6 +423,8 @@ aCIN <- numeric()
 mCAPE <- numeric()
 mHLCY <- numeric()
 mCIN <- numeric()
+mUSTM <- numeric()
+mVSTM <- numeric()
 
 for(i in 1:length(slug)){
   print(i)
@@ -428,12 +432,16 @@ for(i in 1:length(slug)){
   CAPE.rl <- raster(rb, layer = 375)
   HLCY.rl <- raster(rb, layer = 323)
   CIN.rl <- raster(rb, layer = 376)
+  USTM.rl <- raster(rb, layer = 324)
+  VSTM.rl <- raster(rb, layer = 325)
   aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = mean)))
   aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = mean)))
   aCIN <- c(aCIN, mean(raster::extract(CIN.rl, df[i, ], fun = mean)))
   mCAPE <- c(mCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = max)))
   mHLCY <- c(mHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = max)))
   mCIN <- c(mCIN, mean(raster::extract(CIN.rl, df[i, ], fun = min)))
+  mUSTM <- c(mUSTM, mean(raster::extract(USTM.rl, df[i, ], fun = max)))
+  mVSTM <- c(mVSTM, mean(raster::extract(VSTM.rl, df[i, ], fun = max)))
 }
 ```
 
@@ -445,6 +453,8 @@ df$aCIN <- aCIN
 df$mCAPE <- mCAPE
 df$mHLCY <- mHLCY
 df$mCIN <- mCIN
+df$mUSTM <- mUSTM
+df$mVSTM <- mVSTM
 ```
 
 Random effects.
@@ -478,13 +488,13 @@ library(lme4)
 model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), data = df)
 summary(model0)
 
-model0a <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
+model0a <- lmer(log(GroupDayTotalED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(mUSTM) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model0a)
 
 model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model1)
 
-model2 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + (1 | Mo), weights = nT, data = df)
+model2 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + scale(mUSTM) + (1 | Mo), weights = nT, data = df)
 summary(model2)
 ```
 
@@ -496,13 +506,13 @@ df$preCas = exp(predict(model2)) - 1
 
 Energy dissipation
 ```{r}
-ggplot(df, aes(x = GroupDayMeanED/10^9, y = preED/10^9, color = log10(GroupDayCas + 1))) +
+ggplot(df, aes(x = GroupDayTotalED/10^9, y = preED/10^9, color = log10(GroupDayCas + 1))) +
   scale_color_continuous(guide=FALSE) +
          geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
          geom_abline(slope = 1) +
-         scale_x_log10(limits = c(.1, 3000), breaks = c(.1, 1, 10, 100, 1000), labels = c(".1", "1", "10", "100", "1000")) +
-         scale_y_log10(limits = c(.1, 3000), breaks = c(.1, 1, 10, 100, 1000), labels = c(".1", "1", "10", "100", "1000")) +
-  ylab("Predicted Energy Dissipation (GW)") + xlab("Average Energy Dissipation (GW)") +
+         scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
+         scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
+  ylab("Predicted Energy Dissipation (GW)") + xlab("Accumulated Energy Dissipation (GW)") +
   theme_minimal()
 ```
 
