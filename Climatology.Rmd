@@ -11,11 +11,11 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Q: What is the geographic variation in the large tornado groups? Q: Which environmental variable (CAPE, shear) best explains accumulated tornado energy? Q: Which best explains casualties? 
 
-Bulk shear kills.
+Mortality rate is the rate of death in a population. Mortality rates for the population affected by tornado outbreaks. Mortality rates are generally expressed as the number of deaths per 1000 individuals per year.
 
 Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within a large 'outbreak'.
 
-Q: Can we quantify the casualty rate per m/s increase in shear and per J/kg increase in CAPE?
+Q: Can we quantify the mortality rate per m/s increase in shear and per J/kg increase in CAPE?
 
 This analysis is done at the scale of tornado groups rather than at more local scales associated with individual tornadoes. 
 
