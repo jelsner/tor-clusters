@@ -9,13 +9,16 @@ editor_options:
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: Which environmental variable (CAPE or shear) best explains group-level tornado energy? How are the environmental variables related to casualties?
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? 
+Q: What is the geographic variation in the large tornado groups? Q: Which environmental variable (CAPE, shear) best explains accumulated tornado energy? Q: Which best explains casualties? 
 
-Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
+Mortality rate is the rate of death in a population. Mortality rates for the population affected by tornado outbreaks. Mortality rates are generally expressed as the number of deaths per 1000 individuals per year.
 
-This analysis is done at the scale of tornado groups rather than at more local scales (individual tornadoes). 
+Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within a large 'outbreak'.
+
+Q: Can we quantify the mortality rate per m/s increase in shear and per J/kg increase in CAPE?
+
+This analysis is done at the scale of tornado groups rather than at more local scales associated with individual tornadoes. 
 
 To minimize controversy related to terminology tornado 'group' is used to refer to tornadoes occurring together in space and time. The word 'outbreak' has a specific definition that is not strictly applied here.
 
@@ -378,6 +381,8 @@ tm_shape(counties.sf) +
                    inner.margins = c(.05, .05, .1, .05))
 ```
 
+Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
+
 Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
@@ -385,7 +390,7 @@ df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
 ggplot(df, aes(y = Year)) +
   geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
-  scale_size(range = c(1, 5), name = "Energy\nDissipation (GW)", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
+  scale_size(range = c(1, 5), name = "Accumulated\nTornado\nEnergy (GW)", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
   scale_x_date(date_breaks = "months", date_labels = "%b") +
   scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
   xlab("") +  ylab("") +
@@ -393,6 +398,7 @@ ggplot(df, aes(y = Year)) +
   theme_minimal()
 ```
 
+Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
 
 ## Part 2: Environmental data
 
