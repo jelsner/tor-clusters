@@ -9,11 +9,13 @@ editor_options:
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? Q: Which environmental variable (CAPE or shear) best explains group-level tornado energy? How are the environmental variables related to casualties?
+Q: Which environmental variable (CAPE or shear) best explains group-level tornado energy? How are the environmental variables related to casualties?
+
+Q: What are the broad geographic variations in CAPE and shear associated with tornado groups? How widely do these environmental characteristics vary geographically? 
 
 Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within an outbreak.
 
-This analysis is done at the scale of tornado groups rather than at more local scales. 
+This analysis is done at the scale of tornado groups rather than at more local scales (individual tornadoes). 
 
 To minimize controversy related to terminology tornado 'group' is used to refer to tornadoes occurring together in space and time. The word 'outbreak' has a specific definition that is not strictly applied here.
 
