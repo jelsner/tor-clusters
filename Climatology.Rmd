@@ -375,7 +375,7 @@ tm_shape(counties.sf) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
-  tm_format_Europe(legend.position = c("right", "bottom"),
+  tm_layout(legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
                    title = "Tornado Group Days by County [1994-2017]",
