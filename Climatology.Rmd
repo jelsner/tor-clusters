@@ -1,6 +1,6 @@
 ---
 title: "Environmental Factors Related to Accumulated Tornado Energy on the Most Prolific Days in the Largest `Outbreaks`"
-author: "Zoe Shroder"
+author: "Zoe Shroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options: 
