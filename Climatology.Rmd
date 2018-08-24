@@ -265,6 +265,15 @@ sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
 ```
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
+```{r}
+#there are 395 bigdays in large groups 
+TotalBigDays <- Tor.sfdfT %>%
+  group_by(groupNumber, cDate) %>%
+  summarize(nT = n()) %>%
+  filter(nT >= 10)
+
+dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
+```
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
