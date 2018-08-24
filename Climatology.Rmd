@@ -274,6 +274,8 @@ TotalBigDays <- Tor.sfdfT %>%
 
 dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
+50% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
