@@ -350,7 +350,6 @@ tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) +
 
 Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
-library(USAboundaries)
 states.sf <- us_states()
 counties.sf <- us_counties()
 ```
@@ -396,6 +395,72 @@ tm_shape(counties.sf) +
 ```
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
+
+Season Outbreaks bs Off-season outbreaks
+
+Season Outbreaks are defined as outbreaks that occur during April, May, and June. 
+```{r}
+Months <- c(4, 5, 6)
+SeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
+       filter(Mo %in% Months)
+  SeasonOutbreaks <- st_transform(SeasonOutbreaks, 
+                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+  
+intSeason <- st_intersects(SeasonOutbreaks, counties.sf, sparse = FALSE)
+colnames(intSeason) <- counties.sf$name
+counties.sf$GroupDayCount <- colSums(intSeason)
+```
+
+```{r}
+tm_shape(states.sf, projection = "laea_NA") +
+  tm_borders() +
+tm_shape(counties.sf) +
+    tm_fill("GroupDayCount",
+            title = "Count",
+            palette = "Reds", n = 10) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_Europe(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   title = "Big Days in Large Groups during Peak Season by County [1994-2017]",
+                   title.size = 1.3,
+                   title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05))
+```
+
+Off-Season Outbreaks
+```{r}
+Months <- c(1:3, 7:12)
+OffSeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
+       filter(Mo %in% Months)
+  OffSeasonOutbreaks <- st_transform(OffSeasonOutbreaks, 
+                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+  
+intOffSeason <- st_intersects(OffSeasonOutbreaks, counties.sf, sparse = FALSE)
+colnames(intOffSeason) <- counties.sf$name
+counties.sf$GroupDayCount <- colSums(intOffSeason)
+```
+
+```{r}
+tm_shape(states.sf, projection = "laea_NA") +
+  tm_borders() +
+tm_shape(counties.sf) +
+    tm_fill("GroupDayCount",
+            title = "Count",
+            palette = "Reds", n = 10) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_Europe(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   title = "Big Days in Large Groups during Off Season by County [1994-2017]",
+                   title.size = 1.3,
+                   title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05))
+```
 
 Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
