@@ -3,7 +3,7 @@ title: "Environmental Factors Related to Accumulated Tornado Energy on the Most 
 author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
-editor_options: 
+editor_options:
   chunk_output_type: inline
 ---
 
