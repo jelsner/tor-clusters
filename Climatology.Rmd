@@ -35,6 +35,7 @@ library(sf)
 library(tmap)
 library(USAboundaries)
 library(rgeos)
+library(VennDiagram)
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
@@ -236,6 +237,33 @@ as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
 ```
+
+
+```{r}
+Groups.fpfn <- Groups.sfdfT %>%
+  filter(Year <= 2011)
+
+Groups.fpfn %>%
+  top_n(n = 9, wt = nT) %>%
+  arrange(desc(nT))
+```
+
+Forbes comparison
+```{r}
+grid.newpage()
+draw.pairwise.venn(15, 13, 10, category = c("Schroder", "Forbes"), lty = rep("blank", 
+    2), fill = c("grey87", "grey61"), alpha = rep(0.5, 2), cat.pos = c(0, 
+    0), cat.dist = rep(0.025, 2))
+```
+
+Fuhrmann Comparison
+```{r}
+grid.newpage()
+draw.pairwise.venn(9, 9, 4, category = c("Schroder", "Fuhrmann"), lty = rep("blank", 
+    2), fill = c("grey87", "grey61"), alpha = rep(0.5, 2), cat.pos = c(0, 
+    0), cat.dist = rep(0.025, 2))
+```
+
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
