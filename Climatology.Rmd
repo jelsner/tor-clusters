@@ -129,7 +129,7 @@ The `cutree()` function is used to extract a group number for each tornado. Torn
 ```{r}
 stime <- proc.time()
 tree <- hclust(dst, method = "single")
-groupNumber <- as.integer(cutree(tree, h = 100000))
+groupNumber <- as.integer(cutree(tree, h = 50000))
 proc.time() - stime
 ```
 
@@ -169,6 +169,29 @@ dim(Groups.sfdfT)
 ```
 
 Over the period 1994-2017 there were 198 tornado groups with at least 30 tornadoes. How many false positives? How many of these groups are not considered `outbreaks`? How many false negatives? How many previously considered `outbreaks` are missed by this algorithm?
+```{r}
+#FUHRMANN 2014
+Groups.sfdfT %>%
+  filter(Year <= 2011) %>%
+  top_n(n = 9, wt = nT) %>%
+  arrange(desc(nT))
+
+Groups.sfdfT %>%
+  filter(Year <= 2011) %>%
+  top_n(n = 9, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
+
+#FORBES 2004
+Groups.sfdfT %>%
+  filter(Year <= 2004) %>%
+  top_n(n = 13, wt = nT) %>%
+  arrange(desc(nT))
+
+Groups.sfdfT %>%
+  filter(Year <= 2004) %>%
+  top_n(n = 13, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
+```
 
 Make tables: Top 10 tornado groups by number of tornadoes, energy dissipation, and duration.
 ```{r}
