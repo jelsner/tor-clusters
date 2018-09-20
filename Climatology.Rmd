@@ -124,7 +124,7 @@ Distances are saved as an object of class `dist` containing a vector of length N
 Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group.
 
 The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
-
+ 
 The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
 ```{r}
 stime <- proc.time()
