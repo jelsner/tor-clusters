@@ -287,6 +287,32 @@ draw.pairwise.venn(9, 9, 4, category = c("Schroder", "Fuhrmann"), lty = rep("bla
     0), cat.dist = rep(0.025, 2))
 ```
 
+```{r}
+FPFN <- read.csv("FPFN_Forbes.csv")
+FPFN
+```
+
+```{r}
+ggplot(FPFN, aes(Cuttree)) + 
+  geom_line(aes(y = False.Negative.Match, colour = "False Negative")) +
+  geom_line(aes(y = False.Positive.Match, colour = "False Positive")) +
+  labs(x = "Space - Time Units", 
+       y = "% Match", 
+       colour = "Match") +
+  theme_bw() +
+    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(panel.border = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))+ 
+  scale_color_manual(values=c( "black", "grey"))+ 
+  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
+                                        max(FPFN$Cuttree), 
+                                        by = 15000), 1)) 
+```
+
+
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
