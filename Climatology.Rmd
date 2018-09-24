@@ -247,7 +247,7 @@ dfnD <- as.data.frame(Groups.sfdfT) %>%
 table(dfnD$nD)
 ```
 
-There are 9 groups lasting only one day, 64 groups lasting two days, etc.
+There are 49 groups lasting only one day, 71 groups lasting two days, etc.
 
 Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
 ```{r}
@@ -271,22 +271,9 @@ Groups.fpfn %>%
   arrange(desc(nT))
 ```
 
-Forbes comparison
-```{r}
-grid.newpage()
-draw.pairwise.venn(15, 13, 10, category = c("Schroder", "Forbes"), lty = rep("blank", 
-    2), fill = c("grey87", "grey61"), alpha = rep(0.5, 2), cat.pos = c(0, 
-    0), cat.dist = rep(0.025, 2))
-```
-
-Fuhrmann Comparison
-```{r}
-grid.newpage()
-draw.pairwise.venn(9, 9, 4, category = c("Schroder", "Fuhrmann"), lty = rep("blank", 
-    2), fill = c("grey87", "grey61"), alpha = rep(0.5, 2), cat.pos = c(0, 
-    0), cat.dist = rep(0.025, 2))
-```
-
+False Positive: How many outbreaks Schroder and Elsner identified, not identified by Forbes/Fuhrmann
+False Negative: How many Forbes/Fuhrmann picked up that we did not
+% Match: F match Z / sum(F & Z )
 ```{r}
 FPFN <- read.csv("FPFN_Forbes.csv")
 FPFN
@@ -294,11 +281,9 @@ FPFN
 
 ```{r}
 ggplot(FPFN, aes(Cuttree)) + 
-  geom_line(aes(y = False.Negative.Match, colour = "False Negative")) +
-  geom_line(aes(y = False.Positive.Match, colour = "False Positive")) +
-  labs(x = "Space - Time Units", 
-       y = "% Match", 
-       colour = "Match") +
+  geom_line(aes(y = PercentMatch)) +
+  labs(x = "Threshold Space - Time Units", 
+       y = "% Match") +
   theme_bw() +
     ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -309,9 +294,9 @@ ggplot(FPFN, aes(Cuttree)) +
   scale_color_manual(values=c( "black", "grey"))+ 
   scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
                                         max(FPFN$Cuttree), 
-                                        by = 15000), 1)) 
+                                        by = 15000), 1)) + 
+  ylim(0,100)
 ```
-
 
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
@@ -329,7 +314,7 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
-         Day = format(cDate, "%d"))
+         Day = format(cDate, "%d"))                                                                                                                                                                                                                                                                                                                 
 dim(BigDaysInLargeGroups.sfdfT)
 ```
 
