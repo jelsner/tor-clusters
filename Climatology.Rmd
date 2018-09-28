@@ -336,7 +336,7 @@ TotalBigDays <- Tor.sfdfT %>%
 
 dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
-50% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 
 Table the number of days per group. Also look at the day counts by year and month.
@@ -351,6 +351,7 @@ table(BigDaysInLargeGroups.sfdfT$Month)
 Top 10 biggest tornado days within the largest groups.
 ```{r}
 BigDaysInLargeGroups.sfdfT %>%
+    mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
   top_n(n = 10, nT) %>%
   arrange(desc(nT))
 ```
@@ -479,7 +480,8 @@ tm_shape(states.sf, projection = "laea_NA") +
 tm_shape(counties.sf) +
     tm_fill("GroupDayCount",
             title = "Count",
-            palette = "Reds", n = 10) +
+            palette = "Reds", n = 10, 
+            breaks = c(0, 5, 10, 15, 20, 25, 30)) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
@@ -511,7 +513,8 @@ tm_shape(states.sf, projection = "laea_NA") +
 tm_shape(counties.sf) +
     tm_fill("GroupDayCount",
             title = "Count",
-            palette = "Reds", n = 10) +
+            palette = "Reds", n = 10, 
+            breaks = c(0, 5, 10, 15, 20, 25, 30)) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
