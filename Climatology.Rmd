@@ -249,6 +249,11 @@ table(dfnD$nD)
 
 There are 49 groups lasting only one day, 71 groups lasting two days, etc.
 
+```{r}
+
+```
+
+
 Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
 ```{r}
 as.data.frame(Groups.sfdfT) %>%
@@ -280,21 +285,18 @@ FPFN
 ```
 
 ```{r}
-ggplot(FPFN, aes(Cuttree)) + 
-  geom_line(aes(y = PercentMatch)) +
-  labs(x = "Threshold Space - Time Units", 
-       y = "% Match") +
-  theme_bw() +
-    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(panel.border = element_blank(), 
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        axis.line = element_line(colour = "black"))+ 
-  scale_color_manual(values=c( "black", "grey"))+ 
-  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
-                                        max(FPFN$Cuttree), 
-                                        by = 15000), 1)) + 
+ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
+  geom_line() +
+  geom_point() +
+  labs(x = "Space - Time Distance", 
+       y = "Percent") +
+  theme_minimal() +
+#    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
+#  theme(plot.title = element_text(hjust = 0.5)) +
+   
+#  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
+ #                                       max(FPFN$Cuttree), 
+  #                                      by = 15000), 1)) + 
   ylim(0,100)
 ```
 
@@ -363,6 +365,11 @@ groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups
 groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
+```{r}
+
+```
+
+
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
 tm_shape(groupDayCentroids.sfdfT) +
@@ -403,12 +410,36 @@ Obtain the group day hulls. Transform the CRS to match that of the environmental
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
 
+```{r}
 tm_shape(BigDaysInLargeGroups.sfdfT) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders() +
   tm_compass() + tm_scale_bar() 
+```
+
+```{r}
+Top10BigDays <- BigDaysInLargeGroups.sfdfT  %>%
+  arrange(desc(nT)) %>%
+  filter(nT >= 84)
+
+dates <- Top10BigDays$cDate
+
+Top10Centroids <- groupDayCentroids.sfdfT %>%
+  filter(cDate %in% dates)
+```
+
+```{r}
+tm_shape(Top10BigDays) +
+  tm_polygons(alpha = .1) +
+tm_shape(Top10Centroids) +
+  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
+tm_shape(stateBorders) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75)
 ```
 
 Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
@@ -480,8 +511,7 @@ tm_shape(states.sf, projection = "laea_NA") +
 tm_shape(counties.sf) +
     tm_fill("GroupDayCount",
             title = "Count",
-            palette = "Reds", n = 10, 
-            breaks = c(0, 5, 10, 15, 20, 25, 30)) +
+            palette = "Reds", n = 10) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
