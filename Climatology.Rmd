@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -249,11 +249,6 @@ table(dfnD$nD)
 
 There are 49 groups lasting only one day, 71 groups lasting two days, etc.
 
-```{r}
-
-```
-
-
 Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
 ```{r}
 as.data.frame(Groups.sfdfT) %>%
@@ -283,7 +278,7 @@ False Negative: How many Forbes/Fuhrmann picked up that we did not
 FPFN <- read.csv("FPFN_Forbes.csv")
 FPFN
 ```
-
+Graph of the percent match values between ours and the Forbes 2004. 
 ```{r}
 ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
   geom_line() +
@@ -316,7 +311,7 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
-         Day = format(cDate, "%d"))                                                                                                                                                                                                                                                                                                                 
+         Day = format(cDate, "%d"))                                                                                      
 dim(BigDaysInLargeGroups.sfdfT)
 ```
 
@@ -365,10 +360,45 @@ groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups
 groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
-```{r}
+Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
+```{r}
+May30 <- BigDaysInLargeGroups.sfdfT %>%
+  filter(cDate == "2004-05-30")
+May30 <- st_convex_hull(May30)
+
+May30centroid <- groupDayCentroids.sfdfT %>%
+  filter(cDate == "2004-05-30")
+
+May30tornadoes <- Tor.sfdfT %>% 
+  filter(groupNumber == 3255)
 ```
 
+Make a map of the May 30 tornado day. 
+```{r}
+tm_shape(stateBorders) + 
+  tm_borders(col = "darkgray", alpha = 1) +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+tm_shape(counties.sf) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_World(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   #title = "May 30th Tornado Group",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05)) +
+tm_shape(May30) +
+  tm_polygons(col = NA, alpha = 0, border.col = "red") + 
+  tm_fill(col = "gray") +
+tm_shape(May30tornadoes) +
+  tm_symbols(size = 0.25, col = "black") +
+tm_shape(May30centroid) +
+  tm_symbols(size = 0.5, col = "red", shape =24) 
+```
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
@@ -420,28 +450,6 @@ tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) +
   tm_compass() + tm_scale_bar() 
 ```
 
-```{r}
-Top10BigDays <- BigDaysInLargeGroups.sfdfT  %>%
-  arrange(desc(nT)) %>%
-  filter(nT >= 84)
-
-dates <- Top10BigDays$cDate
-
-Top10Centroids <- groupDayCentroids.sfdfT %>%
-  filter(cDate %in% dates)
-```
-
-```{r}
-tm_shape(Top10BigDays) +
-  tm_polygons(alpha = .1) +
-tm_shape(Top10Centroids) +
-  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
-tm_shape(stateBorders) + 
-  tm_borders() +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75)
-```
-
 Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
 states.sf <- us_states()
@@ -482,13 +490,45 @@ tm_shape(counties.sf) +
   tm_layout(legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
-                   title = "Tornado Group Days by County [1994-2017]",
-                   title.size = 1.3,
-                   title.position = c("left", "TOP"),
+                   #title = "Tornado Group Days by County [1994-2017]",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
                    inner.margins = c(.05, .05, .1, .05))
 ```
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
+
+```{r}
+multiplot <- function(..., plotlist=NULL, cols) {
+    require(grid)
+
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+
+    numPlots = length(plots)
+
+    # Make the panel
+    plotCols = cols                          # Number of columns of plots
+    plotRows = ceiling(numPlots/plotCols) # Number of rows needed, calculated from # of cols
+
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(plotRows, plotCols)))
+    vplayout <- function(x, y)
+        viewport(layout.pos.row = x, layout.pos.col = y)
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+        curRow = ceiling(i/plotCols)
+        curCol = (i-1) %% plotCols + 1
+        print(plots[[i]], vp = vplayout(curRow, curCol ))
+    }
+
+}
+
+multiplot(groupcentroids, groupbycounty, cols = 2)
+```
+
 
 Season Outbreaks bs Off-season outbreaks
 
@@ -573,6 +613,19 @@ ggplot(df, aes(y = Year)) +
 ```
 
 Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
+
+Density plot of ATE:
+
+```{r}
+ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) + 
+  geom_histogram(aes(y = ..density..), 
+                 alpha = 0.7, 
+                 fill = "#333333", 
+                 binwidth = 0.3) + 
+  geom_density(fill = "#ff4d4d", alpha = 0.5) +
+  xlab("Accumulated Tornado Energy") +
+  ylab("Density")
+```
 
 ## Part 2: Environmental data
 
