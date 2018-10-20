@@ -617,14 +617,17 @@ Accumulated tornado energy (ATE) by day of year on days with more than 10 tornad
 Density plot of ATE:
 
 ```{r}
-ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) + 
+labels <- c("10", "100", "1000","10000", "100000")
+
+ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
   geom_histogram(aes(y = ..density..), 
                  alpha = 0.7, 
                  fill = "#333333", 
                  binwidth = 0.3) + 
   geom_density(fill = "#ff4d4d", alpha = 0.5) +
-  xlab("Accumulated Tornado Energy") +
-  ylab("Density")
+  scale_x_continuous(breaks = 10:14, labels= labels) +
+  xlab("Log of Accumulated Tornado Energy") +
+  ylab("Density") 
 ```
 
 ## Part 2: Environmental data
