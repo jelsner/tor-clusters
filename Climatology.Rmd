@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -311,7 +311,8 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
-         Day = format(cDate, "%d"))                                                                                      
+         Day = format(cDate, "%d"), 
+         ATE = GroupDayTotalED/10^12)                                                                                      
 dim(BigDaysInLargeGroups.sfdfT)
 ```
 
@@ -613,6 +614,26 @@ ggplot(df, aes(y = Year)) +
 ```
 
 Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
+
+```{r}
+BigDaysInLargeGroups.sfdfT %>%
+  select(cDate, GroupDayTotalED, ATE) %>%
+  top_n(n = 10) %>%
+  arrange(desc(ATE))
+```
+Use a spearman's Rank Correlationn to determine the relationship between ATE and the number of tornadoes.  
+
+```{r}
+corr <- cor.test(x=BigDaysInLargeGroups.sfdfT$ATE, y=BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
+corr
+```
+Spearman's rank correlation between ATE and number of tornadoes is .669
+
+Value of r                  	Strength of relationship
+-1.0 to -0.5 or 1.0 to 0.5	  Strong
+-0.5 to -0.3 or 0.3 to 0.5	  Moderate
+-0.3 to -0.1 or 0.1 to 0.3	  Weak
+-0.1 to 0.1	                  None or very weak
 
 Density plot of ATE:
 
