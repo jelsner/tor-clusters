@@ -9,22 +9,6 @@ editor_options:
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
 
-Q: What is the geographic variation in the large tornado groups? Q: Which environmental variable (CAPE, shear) best explains accumulated tornado energy? Q: Which best explains casualties? 
-
-Mortality rate is the rate of death in a population. Mortality rates for the population affected by tornado outbreaks. Mortality rates are generally expressed as the number of deaths per 1000 individuals per year.
-
-Why is this important? Tornado groups represent a concentrated large-scale risk for significant damage and casualties. In fact 3/4 of all fatalities occur on days with the most tornadoes within a large 'outbreak'.
-
-Q: Can we quantify the mortality rate per m/s increase in shear and per J/kg increase in CAPE?
-
-This analysis is done at the scale of tornado groups rather than at more local scales associated with individual tornadoes. 
-
-To minimize controversy related to terminology tornado 'group' is used to refer to tornadoes occurring together in space and time. The word 'outbreak' has a specific definition that is not strictly applied here.
-
-Analysis and modeling makes use of the Storm Prediction Center's tornado data set.
-
-Introduce the term "Accumulated Tornado Energy (ATE)"
-
 ## Part 1: Tornado data
 
 Set working directory and load packages.
@@ -37,7 +21,7 @@ library(USAboundaries)
 library(rgeos)
 ```
 
-The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
+The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
 ```{r}
 Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
 Tor.spdf <- Tor.df
@@ -47,7 +31,7 @@ Tor.sfdf <- st_as_sf(Tor.spdf)
 st_crs(Tor.sfdf) <- 4326
 ```
 
-Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. The year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
+Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. That year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
 ```{r}
 Tor.sfdf <- Tor.sfdf %>%
   filter(yr >= 1994,
