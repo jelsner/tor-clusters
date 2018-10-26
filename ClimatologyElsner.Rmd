@@ -1,0 +1,774 @@
+---
+title: "Environmental Factors Related to Accumulated Tornado Energy on the Most Prolific Days in the Largest `Outbreaks`"
+author: "Zoe Schroder/James Elsner"
+date: "7/31/2018"
+output: github_notebook
+editor_options:
+  chunk_output_type: inline
+---
+
+Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
+
+## Part 1: Tornado data
+
+Set working directory and load packages.
+```{r}
+library(tidyverse)
+library(lubridate)
+library(sf)
+library(tmap)
+library(USAboundaries)
+library(rgeos)
+library(VennDiagram)
+```
+
+The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
+```{r}
+Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
+Tor.spdf <- Tor.df
+rm(Tor.df)
+sp::coordinates(Tor.spdf) <- ~ slon + slat
+Tor.sfdf <- st_as_sf(Tor.spdf)
+st_crs(Tor.sfdf) <- 4326
+```
+
+Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. That year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
+```{r}
+Tor.sfdf <- Tor.sfdf %>%
+  filter(yr >= 1994,
+         !st %in% c("AK", "PR", "HI")) %>%
+  mutate(mag = ifelse(mag == -9 & len <= 5, 0, mag),
+         mag = ifelse(mag == -9 & len > 5, 1, mag))
+```
+
+Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
+```{r}
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
+         DateTime = as.POSIXct(paste(yr, mo, dy, time), format = "%Y%m%d%H:%M:%S"),
+         Hour = hour(DateTime),
+         Year = year(DateTime),
+         cDateTime = DateTime - as.difftime(6, unit = "hours"),
+         cDate = as.Date(as_datetime(ifelse(Hour < 6, (DateTime - 86400), cDateTime), tz = Sys.timezone())),
+         Length = len * 1609.34,
+         Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
+         Width = wid * .9144,
+         Width = ifelse(Width == 0, min(Width[Width > 0]), Width), #takes care of zero width
+         Width = ifelse(Year >= 1995, Width * pi/4, Width), #takes care of change: avg to max
+         cas = inj + fat,
+         AreaPath = Length * Width,
+         Ma = factor(month.abb[mo], levels = month.abb[1:12])) %>%
+  sf::st_sf()
+max(Tor.sfdf$yr)
+```
+
+The geometry type is `POINT`. Each tornado is represented as a single point location geometry (start location). 
+
+Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3-sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al. (2017). The model is
+$$
+E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},
+$$
+where $A_p$ is the area of the path, $\rho$ is area density [1 kg/m^3]  $v_j$ is the midpoint wind speed for each rating, and $w_j$ is the corresponding fraction of path area by EF rating. With no upper bound on the EF5 wind speeds, the midpoint wind speed is set at 97 m~s$^{-1}$ (7.5 m~s$^{-1}$ above the threshold wind speed consistent with the EF4 midpoint speed relative to its threshold)
+```{r}
+perc <- c(1, 0, 0, 0, 0, 0, 
+          .772, .228, 0, 0, 0, 0,
+          .616, .268, .115, 0, 0, 0,
+          .529, .271, .133, .067, 0, 0,
+          .543, .238, .131, .056, .032, 0,
+          .538, .223, .119, .07, .033, .017)
+percM <- matrix(perc, ncol = 6, byrow = TRUE)
+threshW <- c(29.06, 38.45, 49.62, 60.8, 74.21, 89.41)
+midptW <- c(diff(threshW)/2 + threshW[-length(threshW)], threshW[length(threshW)] + 7.5)
+ef <- Tor.sfdf$mag + 1
+EW3 <- numeric()
+for(i in 1:length(ef)) EW3[i] = midptW^3 %*% percM[ef[i], ]
+Tor.sfdf <- Tor.sfdf %>%
+  mutate(ED = EW3 * AreaPath)
+```
+
+Determine the distance between tornadoes in space and time. Use a projection, not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
+```{r}
+Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
+space <- st_coordinates(Tor.sfdfT)
+time <- Tor.sfdf$DateTime
+```
+
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
+
+Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
+```{r}
+ds <- dist(space) / 10
+dt <- dist(time)
+dst <- ds + dt
+rm(ds, dt)
+```
+
+Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
+
+Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group.
+
+The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
+ 
+The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
+```{r}
+stime <- proc.time()
+tree <- hclust(dst, method = "single")
+groupNumber <- as.integer(cutree(tree, h = 50000))
+proc.time() - stime
+```
+
+Add the group number to each tornado. 
+```{r}
+Tor.sfdfT$groupNumber <- groupNumber
+```
+
+Compute group-level statistics. Keep only tornado groups with at least 30 tornadoes.
+```{r}
+Groups.sfdfT <- Tor.sfdfT %>%
+  group_by(groupNumber) %>%
+  summarize(Year = first(Year),
+            Month = first(mo),
+            FirstDate = first(date),
+            LastDate = last(date),
+            Name = paste(FirstDate, "to", LastDate),
+            FirstcDate = first(cDate),
+            LastcDate = last(cDate),
+            ncD = n_distinct(cDate),
+            nT = n(),
+            n0 = sum(mag == 0),
+            n1 = sum(mag == 1),
+            n2 = sum(mag == 2),
+            n3 = sum(mag == 3),
+            n4 = sum(mag == 4),
+            n5 = sum(mag == 5),
+            GroupTotalED = sum(ED),
+            Name2 = paste(round(GroupTotalED/10^12), "TW"),
+            maxEF = max(mag),
+            nD = n_distinct(date),
+            StartTime = first(DateTime),
+            EndTime = last(DateTime),
+            Duration = difftime(EndTime, StartTime, units = "secs")) %>%
+  filter(nT >= 30)
+dim(Groups.sfdfT)
+```
+
+Over the period 1994-2017 there were 198 tornado groups with at least 30 tornadoes. How many false positives? How many of these groups are not considered `outbreaks`? How many false negatives? How many previously considered `outbreaks` are missed by this algorithm?
+```{r}
+#FUHRMANN 2014
+Groups.sfdfT %>%
+  filter(Year <= 2011) %>%
+  top_n(n = 9, wt = nT) %>%
+  arrange(desc(nT))
+
+Groups.sfdfT %>%
+  filter(Year <= 2011) %>%
+  top_n(n = 9, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
+
+#FORBES 2004
+Groups.sfdfT %>%
+  filter(Year <= 2004) %>%
+  top_n(n = 13, wt = nT) %>%
+  arrange(desc(nT))
+
+Groups.sfdfT %>%
+  filter(Year <= 2004) %>%
+  top_n(n = 13, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
+```
+
+Make tables: Top 10 tornado groups by number of tornadoes, energy dissipation, and duration.
+```{r}
+Groups.sfdfT %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
+
+Groups.sfdfT %>%
+  top_n(n = 10, wt = GroupTotalED) %>%
+  arrange(desc(GroupTotalED))
+
+Groups.sfdfT %>%
+  top_n(n = 10, wt = Duration) %>%
+  arrange(desc(Duration))
+
+Groups.sfdfT %>%
+  top_n(n = 10, wt = nD) %>%
+  arrange(desc(nD))
+```
+
+Map the locations (start points) of the top 25 tornado groups by energy dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
+```{r}
+df <- as.data.frame(Groups.sfdfT) %>%
+  top_n(n = 25, wt = GroupTotalED) %>%
+  arrange(GroupTotalED)
+
+sfdf <- Tor.sfdfT %>%
+   filter(groupNumber %in% df$groupNumber) %>%
+   mutate(EF = factor(mag))
+
+sfdf2 <- left_join(sfdf, df, by = "groupNumber") %>%
+  arrange(GroupTotalED, EF)
+```
+
+Get state borders and use the `tm_shape()` function.
+```{r}
+sts <- state.name[!state.name %in% c("Alaska", "Hawaii")]
+stateBorders <- us_states(states = sts)
+
+tm_shape(stateBorders) + 
+  tm_borders(col = "grey") +
+  tm_layout(legend.outside = TRUE) +
+  tm_shape(sfdf2) +
+  tm_facets(by = "GroupTotalED", ncol = 5)  +
+  tm_symbols(col = "EF", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
+  tm_layout(panel.labels = paste(df$Name2, df$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
+```
+
+Distribution of the number of days each group lasts.
+```{r}
+dfnD <- as.data.frame(Groups.sfdfT) %>%
+  arrange(desc(nD))
+table(dfnD$nD)
+```
+
+There are 49 groups lasting only one day, 71 groups lasting two days, etc.
+
+Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
+```{r}
+as.data.frame(Groups.sfdfT) %>%
+  filter(nD >= 4) %>%
+  count(Month) %>%
+  mutate(prop = prop.table(n))
+
+as.data.frame(Groups.sfdfT) %>%
+  count(Month, nD) %>%
+  mutate(prop = prop.table(n))
+```
+
+
+```{r}
+Groups.fpfn <- Groups.sfdfT %>%
+  filter(Year <= 2011)
+
+Groups.fpfn %>%
+  top_n(n = 9, wt = nT) %>%
+  arrange(desc(nT))
+```
+
+False Positive: How many outbreaks Schroder and Elsner identified, not identified by Forbes/Fuhrmann
+False Negative: How many Forbes/Fuhrmann picked up that we did not
+% Match: F match Z / sum(F & Z )
+```{r}
+FPFN <- read.csv("FPFN_Forbes.csv")
+FPFN
+```
+Graph of the percent match values between ours and the Forbes 2004. 
+```{r}
+ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
+  geom_line() +
+  geom_point() +
+  labs(x = "Space - Time Distance", 
+       y = "Percent") +
+  theme_minimal() +
+#    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
+#  theme(plot.title = element_text(hjust = 0.5)) +
+   
+#  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
+ #                                       max(FPFN$Cuttree), 
+  #                                      by = 15000), 1)) + 
+  ylim(0,100)
+```
+
+
+Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
+```{r}
+BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
+  filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
+  group_by(groupNumber, cDate) %>%
+  summarize(nT = n(),
+            GroupDayTotalED = sum(ED),
+            GroupDayMaxED = max(ED),
+            GroupDayMeanED = mean(ED),
+            GroupDayCas = sum(cas),
+            GroupDayFat = sum(fat)) %>%
+  filter(nT >= 10) %>%
+  mutate(Year = year(cDate),
+         Mo = month(cDate),
+         Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
+         Day = format(cDate, "%d"), 
+         ATE = GroupDayTotalED/10^12)                                                                                      
+dim(BigDaysInLargeGroups.sfdfT)
+```
+
+There are 395 big days in large groups. These will be used for further analysis and modeling.
+
+Pecentage of all casualties and fatalities occurring on the big days in the large groups.
+```{r}
+sum(BigDaysInLargeGroups.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
+sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
+```
+
+What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
+```{r}
+#there are 395 bigdays in large groups 
+TotalBigDays <- Tor.sfdfT %>%
+  group_by(groupNumber, cDate) %>%
+  summarize(nT = n()) %>%
+  filter(nT >= 10)
+
+dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
+```
+25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+
+
+Table the number of days per group. Also look at the day counts by year and month.
+```{r}
+table(table(BigDaysInLargeGroups.sfdfT$groupNumber))
+table(BigDaysInLargeGroups.sfdfT$Year)
+table(BigDaysInLargeGroups.sfdfT$Month)
+```
+
+71% of all big days in large groups occur during April, May, and June.
+
+Top 10 biggest tornado days within the largest groups.
+```{r}
+BigDaysInLargeGroups.sfdfT %>%
+    mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
+  top_n(n = 10, nT) %>%
+  arrange(desc(nT))
+```
+
+Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
+```{r}
+groupDayCentroids.sfdfT <- st_centroid(BigDaysInLargeGroups.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups.sfdfT))
+groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
+```
+
+Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
+
+```{r}
+May30 <- BigDaysInLargeGroups.sfdfT %>%
+  filter(cDate == "2004-05-30")
+May30 <- st_convex_hull(May30)
+
+May30centroid <- groupDayCentroids.sfdfT %>%
+  filter(cDate == "2004-05-30")
+
+May30tornadoes <- Tor.sfdfT %>% 
+  filter(groupNumber == 3255)
+```
+
+Make a map of the May 30 tornado day. 
+```{r}
+tm_shape(stateBorders) + 
+  tm_borders(col = "darkgray", alpha = 1) +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+tm_shape(counties.sf) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_World(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   #title = "May 30th Tornado Group",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05)) +
+tm_shape(May30) +
+  tm_polygons(col = NA, alpha = 0, border.col = "red") + 
+  tm_fill(col = "gray") +
+tm_shape(May30tornadoes) +
+  tm_symbols(size = 0.25, col = "black") +
+tm_shape(May30centroid) +
+  tm_symbols(size = 0.5, col = "red", shape =24) 
+```
+
+Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
+```{r}
+tm_shape(groupDayCentroids.sfdfT) +
+  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
+tm_shape(stateBorders) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75)
+```
+
+Tornado group day centers do not have an obvious population bias.
+
+Time series graphs
+```{r}
+groupDayCentroids.sfdfT %>%
+  group_by(Year) %>%
+  summarize(avgArea = mean(groupArea)) %>%
+  ggplot(., aes(x = Year, y = as.numeric(avgArea) / 10^10)) +
+    scale_y_continuous(limits = c(0, NA)) +
+    geom_point() +
+    geom_smooth(method = lm) +
+    ylab("Group Area [100 x 100 sq. km]") +
+    theme_minimal()
+
+groupDayCentroids.sfdfT %>%
+  group_by(Year) %>%
+  summarize(avgDensity = mean(groupDensity)) %>%
+  ggplot(., aes(x = Year, y = as.numeric(avgDensity) * 10^10)) +
+    scale_y_continuous(limits = c(0, NA)) +
+    geom_point() +
+    geom_smooth(method = lm) +
+    ylab("Group Density [Tornadoes/100 x 100 sq. km]") +
+    theme_minimal()
+```
+
+Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+```{r}
+BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
+BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r}
+tm_shape(BigDaysInLargeGroups.sfdfT) +
+  tm_polygons(alpha = .1) + 
+tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() 
+```
+
+Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
+```{r}
+states.sf <- us_states()
+counties.sf <- us_counties()
+```
+
+Transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
+```{r}
+counties.sf <- st_transform(counties.sf, 
+                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+```
+
+Intersect
+```{r}
+gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf, sparse = FALSE)
+#gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf)
+colnames(gI) <- counties.sf$name
+counties.sf$GroupDayCount <- colSums(gI)
+```
+
+Remove Alaska, Hawaii, and Puerto Rico from the `states.sf` data frame.
+```{r}
+states.sf <- states.sf %>% 
+  filter(!stusps %in% c("AK", "PR", "HI"))
+```
+
+Create a map of the outbreak density in each county in the United States. Fill by the `GroupDayCount` column. 
+```{r}
+tm_shape(states.sf, projection = "laea_NA") +
+  tm_borders() +
+tm_shape(counties.sf) +
+   tm_fill("GroupDayCount",
+            title = "Count",
+            palette = "Reds", n = 5) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_layout(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   #title = "Tornado Group Days by County [1994-2017]",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05))
+```
+
+Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
+
+```{r}
+multiplot <- function(..., plotlist=NULL, cols) {
+    require(grid)
+
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+
+    numPlots = length(plots)
+
+    # Make the panel
+    plotCols = cols                          # Number of columns of plots
+    plotRows = ceiling(numPlots/plotCols) # Number of rows needed, calculated from # of cols
+
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(plotRows, plotCols)))
+    vplayout <- function(x, y)
+        viewport(layout.pos.row = x, layout.pos.col = y)
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+        curRow = ceiling(i/plotCols)
+        curCol = (i-1) %% plotCols + 1
+        print(plots[[i]], vp = vplayout(curRow, curCol ))
+    }
+
+}
+
+multiplot(groupcentroids, groupbycounty, cols = 2)
+```
+
+
+Season Outbreaks bs Off-season outbreaks
+
+Season Outbreaks are defined as outbreaks that occur during April, May, and June. 
+```{r}
+Months <- c(4, 5, 6)
+SeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
+       filter(Mo %in% Months)
+  SeasonOutbreaks <- st_transform(SeasonOutbreaks, 
+                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+  
+intSeason <- st_intersects(SeasonOutbreaks, counties.sf, sparse = FALSE)
+colnames(intSeason) <- counties.sf$name
+counties.sf$GroupDayCount <- colSums(intSeason)
+```
+
+```{r}
+tm_shape(states.sf, projection = "laea_NA") +
+  tm_borders() +
+tm_shape(counties.sf) +
+    tm_fill("GroupDayCount",
+            title = "Count",
+            palette = "Reds", n = 10) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_Europe(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   title = "Big Days in Large Groups during Peak Season by County [1994-2017]",
+                   title.size = 1.3,
+                   title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05))
+```
+
+Off-Season Outbreaks
+```{r}
+Months <- c(1:3, 7:12)
+OffSeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
+       filter(Mo %in% Months)
+  OffSeasonOutbreaks <- st_transform(OffSeasonOutbreaks, 
+                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+  
+intOffSeason <- st_intersects(OffSeasonOutbreaks, counties.sf, sparse = FALSE)
+colnames(intOffSeason) <- counties.sf$name
+counties.sf$GroupDayCount <- colSums(intOffSeason)
+```
+
+```{r}
+tm_shape(states.sf, projection = "laea_NA") +
+  tm_borders() +
+tm_shape(counties.sf) +
+    tm_fill("GroupDayCount",
+            title = "Count",
+            palette = "Reds", n = 10, 
+            breaks = c(0, 5, 10, 15, 20, 25, 30)) +
+  tm_borders(col = "gray", alpha = .3) +
+  tm_compass() + 
+  tm_scale_bar() +
+  tm_format_Europe(legend.position = c("right", "bottom"),
+                   attr.position = c("left", "bottom"),
+                   legend.frame = FALSE,
+                   title = "Big Days in Large Groups during Off Season by County [1994-2017]",
+                   title.size = 1.3,
+                   title.position = c("left", "TOP"),
+                   inner.margins = c(.05, .05, .1, .05))
+```
+
+Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
+```{r}
+df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
+  mutate(lTED = log10(GroupDayTotalED),
+         plot_date = as.Date(format(cDate, "2012-%m-%d")))
+ggplot(df, aes(y = Year)) +
+  geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
+  scale_size(range = c(1, 5), name = "Accumulated\nTornado\nEnergy (GW)", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
+  scale_x_date(date_breaks = "months", date_labels = "%b") +
+  scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
+  xlab("") +  ylab("") +
+  geom_point(aes(size = lTED, x = plot_date), color = "gray", alpha = .5) +
+  theme_minimal()
+```
+
+Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
+
+```{r}
+BigDaysInLargeGroups.sfdfT %>%
+  select(cDate, GroupDayTotalED, ATE) %>%
+  top_n(n = 10) %>%
+  arrange(desc(ATE))
+```
+Use a spearman's Rank Correlationn to determine the relationship between ATE and the number of tornadoes.  
+
+```{r}
+corr <- cor.test(x=BigDaysInLargeGroups.sfdfT$ATE, y=BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
+corr
+```
+Spearman's rank correlation between ATE and number of tornadoes is .669
+
+Value of r                  	Strength of relationship
+-1.0 to -0.5 or 1.0 to 0.5	  Strong
+-0.5 to -0.3 or 0.3 to 0.5	  Moderate
+-0.3 to -0.1 or 0.1 to 0.3	  Weak
+-0.1 to 0.1	                  None or very weak
+
+Density plot of ATE:
+
+```{r}
+labels <- c("10", "100", "1000","10000", "100000")
+
+ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
+  geom_histogram(aes(y = ..density..), 
+                 alpha = 0.7, 
+                 fill = "#333333", 
+                 binwidth = 0.3) + 
+  geom_density(fill = "#ff4d4d", alpha = 0.5) +
+  scale_x_continuous(breaks = 10:14, labels= labels) +
+  xlab("Log of Accumulated Tornado Energy") +
+  ylab("Density") 
+```
+
+## Part 2: Environmental data
+
+Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
+```{r}
+library(lubridate)
+df <- BigDaysInLargeGroups.sfdfT %>%
+  filter(Year <= 2013) %>%
+  mutate(Yr = Year,
+         YrMo = paste0(Year, Month),
+         YrMoDa = paste0(YrMo, Day),
+         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_1800_000.grb"),
+         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2)) 
+slug <- df$slug
+```
+
+Download the grib files.
+```{r, eval=FALSE}
+for(i in 1:length(slug)){
+    download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
+    }
+```
+
+Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls. https://nomads.ncdc.noaa.gov/data/narr/201104/20110427/narr-a_221_20110427_0000_000.inv
+```{r}
+library(raster)
+aCAPE <- numeric()
+aHLCY <- numeric()
+aCIN <- numeric()
+mCAPE <- numeric()
+mHLCY <- numeric()
+mCIN <- numeric()
+mUSTM <- numeric()
+mVSTM <- numeric()
+
+for(i in 1:length(slug)){
+  print(i)
+  rb <- brick(paste0("Archive/NARRdata", i, ".grb"))
+  CAPE.rl <- raster(rb, layer = 375)
+  HLCY.rl <- raster(rb, layer = 323)
+  CIN.rl <- raster(rb, layer = 376)
+  USTM.rl <- raster(rb, layer = 324)
+  VSTM.rl <- raster(rb, layer = 325)
+  aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = mean)))
+  aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = mean)))
+  aCIN <- c(aCIN, mean(raster::extract(CIN.rl, df[i, ], fun = mean)))
+  mCAPE <- c(mCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = max)))
+  mHLCY <- c(mHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = max)))
+  mCIN <- c(mCIN, mean(raster::extract(CIN.rl, df[i, ], fun = min)))
+  mUSTM <- c(mUSTM, mean(raster::extract(USTM.rl, df[i, ], fun = max)))
+  mVSTM <- c(mVSTM, mean(raster::extract(VSTM.rl, df[i, ], fun = max)))
+}
+```
+
+Add environmental data values to the group day means data frame.
+```{r}
+df$aCAPE <- aCAPE
+df$aHLCY <- aHLCY
+df$aCIN <- aCIN
+df$mCAPE <- mCAPE
+df$mHLCY <- mHLCY
+df$mCIN <- mCIN
+df$mUSTM <- mUSTM
+df$mVSTM <- mVSTM
+```
+
+Random effects.
+```{r}
+df %>%
+  group_by(Mo) %>%
+  summarize(mED = mean(GroupDayTotalED)/10^12,
+            nT = sum(nT))
+
+df %>%
+  group_by(Yr) %>%
+  summarize(annualMeanCAPE = mean(aCAPE),
+            annualMeanCAPEm = mean(mCAPE),
+            annualMeanCIN = mean(aCIN),
+            annualMeanCINm = mean(mCIN),
+            annualMeanHLCY = mean(aHLCY),
+            annualMeanHLCYm = mean(mHLCY),
+            annualMeanUSTMm = mean(mUSTM),
+            annualMeanVSTMm = mean(mVSTM)
+            ) %>%
+  mutate(CAPECIN = scale(annualMeanCAPE * annualMeanCIN)) %>%
+  ggplot(., aes(x = Yr, y = annualMeanVSTMm)) +
+    scale_y_continuous() +
+    geom_point() +
+    geom_smooth(method = lm) +
+    ylab("Annual Mean Group Environment [J/kg]") +
+    theme_minimal()
+```
+
+Models
+```{r}
+library(lme4)
+model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), data = df)
+summary(model0)
+
+model0a <- lmer(log(GroupDayTotalED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(mUSTM) + scale(mVSTM) + scale(Yr) + (1|Mo), weights = nT, data = df)
+summary(model0a)
+
+model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
+summary(model1)
+
+model2 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + scale(mUSTM) + (1 | Mo), weights = nT, data = df)
+summary(model2)
+```
+
+Observed versus predicted.
+```{r}
+df$preED = exp(predict(model0a))
+df$preCas = exp(predict(model2)) - 1
+```
+
+Energy dissipation
+```{r}
+ggplot(df, aes(x = GroupDayTotalED/10^9, y = preED/10^9, color = log10(GroupDayCas + 1))) +
+  scale_color_continuous(guide=FALSE) +
+         geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
+         geom_abline(slope = 1) +
+         scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
+         scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
+  ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Estimated Accumulated Tornado Energy [GW]") +
+  theme_minimal()
+```
+
+Casualties
+```{r}
+ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
+  scale_color_continuous(guide=FALSE) +
+         geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
+         geom_abline(slope = 1) +
+         scale_x_log10() +
+         scale_y_log10() +
+  ylab("Predicted Casualties") + xlab("Observed Casualties") +
+  theme_minimal()
+```
