@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -21,7 +21,7 @@ library(USAboundaries)
 library(rgeos)
 ```
 
-The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
+The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
 ```{r}
 Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
 Tor.spdf <- Tor.df
@@ -151,7 +151,7 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
-Over the period 1994-2017 there were 137 tornado groups with at least 30 tornadoes. How many false positives? How many of these groups are not considered `outbreaks`? How many false negatives? How many previously considered `outbreaks` are missed by this algorithm?
+Over the period 1994-2017 there were 137 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
 ```{r}
 #FUHRMANN 2014
 Groups.sfdfT %>%
@@ -228,14 +228,15 @@ Distribution of the number of days each group lasts.
 dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
+(137-49)/137 * 100
 ```
 
 There are 49 groups lasting only one day, 71 groups lasting two days, etc.
 
-Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
+Frequency by month of the start day of multi-day groups of at least three days in length.
 ```{r}
 as.data.frame(Groups.sfdfT) %>%
-  filter(nD >= 4) %>%
+  filter(nD >= 3) %>%
   count(Month) %>%
   mutate(prop = prop.table(n))
 
@@ -243,7 +244,6 @@ as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
 ```
-
 
 ```{r}
 Groups.fpfn <- Groups.sfdfT %>%
@@ -299,7 +299,7 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
 dim(BigDaysInLargeGroups.sfdfT)
 ```
 
-There are 395 big days in large groups. These will be used for further analysis and modeling.
+There are 177 big days in large groups. These will be used for further analysis and modeling.
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -309,7 +309,6 @@ sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
 ```{r}
-#there are 395 bigdays in large groups 
 TotalBigDays <- Tor.sfdfT %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n()) %>%
@@ -355,11 +354,14 @@ May30centroid <- groupDayCentroids.sfdfT %>%
   filter(cDate == "2004-05-30")
 
 May30tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 3255)
+  filter(groupNumber == May30centroid$groupNumber)
 ```
 
-Make a map of the May 30 tornado day. 
+Make a map of the May 30 tornado day. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
+states.sf <- us_states()
+counties.sf <- us_counties()
+
 tm_shape(stateBorders) + 
   tm_borders(col = "darkgray", alpha = 1) +
   tm_compass() + tm_scale_bar() +
@@ -368,7 +370,7 @@ tm_shape(counties.sf) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
+  tm_format("World", legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
                    #title = "May 30th Tornado Group",
@@ -376,12 +378,11 @@ tm_shape(counties.sf) +
                    #title.position = c("left", "TOP"),
                    inner.margins = c(.05, .05, .1, .05)) +
 tm_shape(May30) +
-  tm_polygons(col = NA, alpha = 0, border.col = "red") + 
-  tm_fill(col = "gray") +
+  tm_borders(col = "red") +
 tm_shape(May30tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
+  tm_symbols(size = .25, col = "black") +
 tm_shape(May30centroid) +
-  tm_symbols(size = 0.5, col = "red", shape =24) 
+  tm_symbols(size = .5, col = "red", shape = 24) 
 ```
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
@@ -394,8 +395,6 @@ tm_shape(stateBorders) +
   tm_layout(legend.bg.color = "white", legend.text.size = .75)
 ```
 
-Tornado group day centers do not have an obvious population bias.
-
 Time series graphs
 ```{r}
 groupDayCentroids.sfdfT %>%
@@ -403,6 +402,7 @@ groupDayCentroids.sfdfT %>%
   summarize(avgArea = mean(groupArea)) %>%
   ggplot(., aes(x = Year, y = as.numeric(avgArea) / 10^10)) +
     scale_y_continuous(limits = c(0, NA)) +
+    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Group Area [100 x 100 sq. km]") +
@@ -413,6 +413,7 @@ groupDayCentroids.sfdfT %>%
   summarize(avgDensity = mean(groupDensity)) %>%
   ggplot(., aes(x = Year, y = as.numeric(avgDensity) * 10^10)) +
     scale_y_continuous(limits = c(0, NA)) +
+    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Group Density [Tornadoes/100 x 100 sq. km]") +
@@ -434,13 +435,7 @@ tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) +
   tm_compass() + tm_scale_bar() 
 ```
 
-Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
-```{r}
-states.sf <- us_states()
-counties.sf <- us_counties()
-```
-
-Transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
+Create a map showing the frequency of big tornado days by county. Transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
 ```{r}
 counties.sf <- st_transform(counties.sf, 
                             crs = st_crs(BigDaysInLargeGroups.sfdfT))
@@ -449,7 +444,6 @@ counties.sf <- st_transform(counties.sf,
 Intersect
 ```{r}
 gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf, sparse = FALSE)
-#gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf)
 colnames(gI) <- counties.sf$name
 counties.sf$GroupDayCount <- colSums(gI)
 ```
