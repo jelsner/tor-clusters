@@ -19,10 +19,9 @@ library(sf)
 library(tmap)
 library(USAboundaries)
 library(rgeos)
-library(VennDiagram)
 ```
 
-The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
+The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
 ```{r}
 Tor.df <- read.csv(file = "1950-2017_actual_tornadoes.csv")
 Tor.spdf <- Tor.df
@@ -152,7 +151,7 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
-Over the period 1994-2017 there were 198 tornado groups with at least 30 tornadoes. How many false positives? How many of these groups are not considered `outbreaks`? How many false negatives? How many previously considered `outbreaks` are missed by this algorithm?
+Over the period 1994-2017 there were 137 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
 ```{r}
 #FUHRMANN 2014
 Groups.sfdfT %>%
@@ -229,14 +228,15 @@ Distribution of the number of days each group lasts.
 dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
+(137-49)/137 * 100
 ```
 
 There are 49 groups lasting only one day, 71 groups lasting two days, etc.
 
-Frequency by month of the start day of multi-day groups of at least 4, 5, and 6 days in length.
+Frequency by month of the start day of multi-day groups of at least three days in length.
 ```{r}
 as.data.frame(Groups.sfdfT) %>%
-  filter(nD >= 4) %>%
+  filter(nD >= 3) %>%
   count(Month) %>%
   mutate(prop = prop.table(n))
 
@@ -244,7 +244,6 @@ as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
 ```
-
 
 ```{r}
 Groups.fpfn <- Groups.sfdfT %>%
@@ -300,7 +299,7 @@ BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
 dim(BigDaysInLargeGroups.sfdfT)
 ```
 
-There are 395 big days in large groups. These will be used for further analysis and modeling.
+There are 177 big days in large groups. These will be used for further analysis and modeling.
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -310,7 +309,6 @@ sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
 ```{r}
-#there are 395 bigdays in large groups 
 TotalBigDays <- Tor.sfdfT %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n()) %>%
@@ -356,11 +354,14 @@ May30centroid <- groupDayCentroids.sfdfT %>%
   filter(cDate == "2004-05-30")
 
 May30tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 3255)
+  filter(groupNumber == May30centroid$groupNumber)
 ```
 
-Make a map of the May 30 tornado day. 
+Make a map of the May 30 tornado day. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
+states.sf <- us_states()
+counties.sf <- us_counties()
+
 tm_shape(stateBorders) + 
   tm_borders(col = "darkgray", alpha = 1) +
   tm_compass() + tm_scale_bar() +
@@ -369,7 +370,7 @@ tm_shape(counties.sf) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass() + 
   tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
+  tm_format("World", legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
                    #title = "May 30th Tornado Group",
@@ -377,42 +378,22 @@ tm_shape(counties.sf) +
                    #title.position = c("left", "TOP"),
                    inner.margins = c(.05, .05, .1, .05)) +
 tm_shape(May30) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
+  tm_borders(col = "red") +
 tm_shape(May30tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
+  tm_symbols(size = .25, col = "black") +
 tm_shape(May30centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
+  tm_symbols(size = .5, col = "red", shape = 24) 
 ```
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
 tm_shape(groupDayCentroids.sfdfT) +
-  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = FALSE, shape =24) + 
-  tm_layout(
-  legend.title.size=1,
-  legend.text.size = 0.6,
-  legend.position = c("right","bottom"),
-  legend.bg.color = "white",
-  legend.bg.alpha = 1)
+  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
+tm_shape(stateBorders) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75)
 ```
-
-Tornado group day centers do not have an obvious population bias.
 
 Time series graphs
 ```{r}
@@ -421,6 +402,7 @@ groupDayCentroids.sfdfT %>%
   summarize(avgArea = mean(groupArea)) %>%
   ggplot(., aes(x = Year, y = as.numeric(avgArea) / 10^10)) +
     scale_y_continuous(limits = c(0, NA)) +
+    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Group Area [100 x 100 sq. km]") +
@@ -431,6 +413,7 @@ groupDayCentroids.sfdfT %>%
   summarize(avgDensity = mean(groupDensity)) %>%
   ggplot(., aes(x = Year, y = as.numeric(avgDensity) * 10^10)) +
     scale_y_continuous(limits = c(0, NA)) +
+    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     geom_point() +
     geom_smooth(method = lm) +
     ylab("Group Density [Tornadoes/100 x 100 sq. km]") +
@@ -444,21 +427,15 @@ BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT,
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
+Check on a map.
 ```{r}
 tm_shape(BigDaysInLargeGroups.sfdfT) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
-  tm_borders() +
-  tm_compass() + tm_scale_bar() 
+  tm_borders()
 ```
 
-Create a map showing the frequency of big tornado days be county. Obtain the state and county boundaries from the **USAboundaries** package. 
-```{r}
-states.sf <- us_states()
-counties.sf <- us_counties()
-```
-
-Transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
+Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
 ```{r}
 counties.sf <- st_transform(counties.sf, 
                             crs = st_crs(BigDaysInLargeGroups.sfdfT))
@@ -467,7 +444,6 @@ counties.sf <- st_transform(counties.sf,
 Intersect
 ```{r}
 gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf, sparse = FALSE)
-#gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf)
 colnames(gI) <- counties.sf$name
 counties.sf$GroupDayCount <- colSums(gI)
 ```
@@ -500,151 +476,6 @@ tm_shape(counties.sf) +
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
 
-```{r}
-multiplot <- function(..., plotlist=NULL, cols) {
-    require(grid)
-
-    # Make a list from the ... arguments and plotlist
-    plots <- c(list(...), plotlist)
-
-    numPlots = length(plots)
-
-    # Make the panel
-    plotCols = cols                          # Number of columns of plots
-    plotRows = ceiling(numPlots/plotCols) # Number of rows needed, calculated from # of cols
-
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(plotRows, plotCols)))
-    vplayout <- function(x, y)
-        viewport(layout.pos.row = x, layout.pos.col = y)
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-        curRow = ceiling(i/plotCols)
-        curCol = (i-1) %% plotCols + 1
-        print(plots[[i]], vp = vplayout(curRow, curCol ))
-    }
-
-}
-
-multiplot(groupcentroids, groupbycounty, cols = 2)
-```
-
-
-Season Outbreaks bs Off-season outbreaks
-
-Season Outbreaks are defined as outbreaks that occur during April, May, and June. 
-```{r}
-Months <- c(4, 5, 6)
-SeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
-       filter(Mo %in% Months)
-  SeasonOutbreaks <- st_transform(SeasonOutbreaks, 
-                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
-  
-intSeason <- st_intersects(SeasonOutbreaks, counties.sf, sparse = FALSE)
-colnames(intSeason) <- counties.sf$name
-counties.sf$GroupDayCount <- colSums(intSeason)
-```
-
-```{r}
-tm_shape(states.sf, projection = "laea_NA") +
-  tm_borders() +
-tm_shape(counties.sf) +
-    tm_fill("GroupDayCount",
-            title = "Count",
-            palette = "Reds", n = 10) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_Europe(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   title = "Big Days in Large Groups during Peak Season by County [1994-2017]",
-                   title.size = 1.3,
-                   title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05))
-```
-
-Off-Season Outbreaks
-```{r}
-Months <- c(1:3, 7:12)
-OffSeasonOutbreaks <- BigDaysInLargeGroups.sfdfT %>%
-       filter(Mo %in% Months)
-  OffSeasonOutbreaks <- st_transform(OffSeasonOutbreaks, 
-                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
-  
-intOffSeason <- st_intersects(OffSeasonOutbreaks, counties.sf, sparse = FALSE)
-colnames(intOffSeason) <- counties.sf$name
-counties.sf$GroupDayCount <- colSums(intOffSeason)
-```
-
-```{r}
-tm_shape(states.sf, projection = "laea_NA") +
-  tm_borders() +
-tm_shape(counties.sf) +
-    tm_fill("GroupDayCount",
-            title = "Count",
-            palette = "Reds", n = 10, 
-            breaks = c(0, 5, 10, 15, 20, 25, 30)) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_Europe(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   title = "Big Days in Large Groups during Off Season by County [1994-2017]",
-                   title.size = 1.3,
-                   title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05))
-```
-Look at the cool season groups. 
-```{r}
-test <- BigDaysInLargeGroups.sfdfT %>%
-  filter(Mo == 11, 
-         12, 
-         1, 
-         2)
-```
-Plot the location:
-```{r}
-Nov23 <- BigDaysInLargeGroups.sfdfT %>%
-  filter(cDate == "2004-11-23")
-Nov23 <- st_convex_hull(May30)
-
-Nov23centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2004-11-23")
-
-Nov23tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 3485)
-```
-
-Make a map of the May 30 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Nov23) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Nov23tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Nov23centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
 Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
@@ -668,23 +499,13 @@ BigDaysInLargeGroups.sfdfT %>%
   top_n(n = 10) %>%
   arrange(desc(ATE))
 ```
-Use a spearman's Rank Correlationn to determine the relationship between ATE and the number of tornadoes.  
+Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
-test <- BigDaysInLargeGroups.sfdfT %>%
-  filter(GroupDayCas != 3069)
-
-ggplot(BigDaysInLargeGroups.sfdfT, aes(x = nT, y = ATE)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    xlab("Number of Tornadoes") +
-    ylab("Average ATE (in TW)") +
-    theme_minimal()
-
 corr <- cor.test(x=BigDaysInLargeGroups.sfdfT$ATE, y=BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
 corr
 ```
-Spearman's rank correlation between ATE and number of tornadoes is .669, but we don't want to use a Pearson rank because the data do not appear to be linear. The Pearson correlation is 0.63 which still indicates a strong relationship. 
+Spearman's rank correlation between ATE and number of tornadoes is .669
 
 Value of r                  	Strength of relationship
 -1.0 to -0.5 or 1.0 to 0.5	  Strong
@@ -698,80 +519,20 @@ Density plot of ATE:
 labels <- c("10", "100", "1000","10000", "100000")
 
 ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
-  geom_histogram(aes(y = ..density..), 
-                 alpha = 0.7, 
-                 fill = "#333333", 
-                 binwidth = 0.3) + 
-  geom_density(fill = "#ff4d4d", alpha = 0.5) +
+  geom_histogram(binwidth = .5, color = "white") +
   scale_x_continuous(breaks = 10:14, labels= labels) +
-  xlab("Log of Accumulated Tornado Energy") +
-  ylab("Density") + theme_minimal
-```
-
-
-Create a time series of annual number of big days in large groups and the annual average ATE for those days
-```{r}
-TS <- BigDaysInLargeGroups.sfdfT %>%
-  group_by(Year) %>%
-  summarize(nBD = n(),
-            avgATE = mean(ATE)) 
-
-ggplot(TS, aes(x = Year, y = nBD)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    ylab("Number of Big Days") +
-    theme_minimal()
-
-ggplot(TS, aes(x = Year, y = avgATE)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    ylab("Average ATE (in TW)") +
-    theme_minimal()
-
-ggplot(TS, aes(x = Year, y = nBD, color = avgATE)) +
-    geom_point() +
-    scale_colour_gradient(low = "lightgray", high = "black") +
-    labs(x = "Year", #label axes
-       y = "Number of Big Days", 
-       colour = "ATE (TW)") +
-    theme_minimal()
-
-ggplot(TS, aes(x = Year, y = avgATE, color = nBD)) +
-    geom_point() +
-    scale_colour_gradient(low = "lightgray", high = "black") +
-    labs(x = "Year", #label axes
-       y = "ATE (in TW)", 
-       colour = "Number of Big Days") +
-    theme_minimal()
-
-ggplot(TS, aes(x = nBD, y = avgATE)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    xlab("Number of Big Days") +
-    ylab("Average ATE (in TW)") +
-    theme_minimal()
-```
-```{r}
-TS$ATE <- cut(TS$avgATE, 
-                       breaks = c(0, 5, 10, 15, 20, 25, 30), 
-                       labels = c("0-5 TW", "5 - 10 TW", "10 - 15 TW", "15 - 20 TW", "20 - 25 TW", "25 - 30 TW"), 
-                       right = FALSE)
-
-ggplot(TS, aes(x = Year, y = nBD)) +
-    geom_point(aes(size = ATE), color = "gray22", alpha = .5) +
-    labs(x = "Year", #label axes
-       y = "Number of Big Days", 
-       name = "New Legend Title") +
-    theme_minimal() 
+  xlab("Accumulated Tornado Energy [GW]") +
+  ylab("Frequency") +
+  theme_minimal()
 ```
 
 ## Part 2: Environmental data
 
-Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after October 2014.
+Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after September 30, 2014.
 ```{r}
 library(lubridate)
 df <- BigDaysInLargeGroups.sfdfT %>%
-  filter(Year <= 2013) %>%
+  filter(cDate <= as.Date("2014-09-30")) %>%
   mutate(Yr = Year,
          YrMo = paste0(Year, Month),
          YrMoDa = paste0(YrMo, Day),
@@ -780,10 +541,10 @@ df <- BigDaysInLargeGroups.sfdfT %>%
 slug <- df$slug
 ```
 
-Download the grib files.
+Download the grib files. ~40 minutes to download 154 grb files from home.
 ```{r, eval=FALSE}
 for(i in 1:length(slug)){
-    download.file(slug[i], paste0("NARRdata", i, ".grb"), mode = "wb")
+    download.file(slug[i], paste0("Archive/NARRdata", i, ".grb"), mode = "wb")
     }
 ```
 
@@ -830,61 +591,51 @@ df$mUSTM <- mUSTM
 df$mVSTM <- mVSTM
 ```
 
+Save the `df` so we can work on the models without needing to run all the code above.
+```{r}
+save(df, file = "df.RData")
+#load("df.RData")
+```
+
 Random effects.
 ```{r}
 df %>%
   group_by(Mo) %>%
   summarize(mED = mean(GroupDayTotalED)/10^12,
             nT = sum(nT))
-
-df %>%
-  group_by(Yr) %>%
-  summarize(annualMeanCAPE = mean(aCAPE),
-            annualMeanCAPEm = mean(mCAPE),
-            annualMeanCIN = mean(aCIN),
-            annualMeanCINm = mean(mCIN),
-            annualMeanHLCY = mean(aHLCY),
-            annualMeanHLCYm = mean(mHLCY),
-            annualMeanUSTMm = mean(mUSTM),
-            annualMeanVSTMm = mean(mVSTM)
-            ) %>%
-  mutate(CAPECIN = scale(annualMeanCAPE * annualMeanCIN)) %>%
-  ggplot(., aes(x = Yr, y = annualMeanUSTMm)) +
-    scale_y_continuous() +
-    geom_point() +
-    geom_smooth(method = lm) +
-    ylab("Annual Mean Group Environment [J/kg]") +
-    theme_minimal()
 ```
 
-Models:
-
-Note that the lmer() function (just like the lm() function in tutorial 1) took whatever comes first in the alphabet to be the reference level.
+Models for ATE.
 ```{r}
 library(lme4)
-model0 <- lmer(log(GroupDayMeanED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), data = df)
-summary(model0)
 
-model0a <- lmer(log(GroupDayTotalED) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(mUSTM) + scale(mVSTM) + scale(Yr) + (1|Mo), weights = nT, data = df)
+model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(mUSTM/10) + I(Yr - 2004) + (1|Mo), 
+                weights = nT, 
+                data = df)
 summary(model0a)
+AIC(model0a)
 
-model0b <- lmer(log(GroupDayTotalED) ~ scale(mHLCY) + scale(aCAPE) * scale(aCIN) + scale(mUSTM) + scale(mVSTM) + scale(Yr) + (1|Mo), weights = nT, data = df)
+model0b <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(Yr - 2004) + (1 |Mo), 
+                weights = nT, 
+                data = df)
 summary(model0b)
+AIC(model0b)
+confint(model0b, method = "Wald")
+```
 
-model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
-summary(model1)
-
-model1a <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) + scale(mUSTM) + (1 | Mo), weights = nT, data = df)
-summary(model1a)
-
-model1b <- lmer(log(GroupDayCas + 1) ~  scale(mHLCY) + scale(mCAPE) + scale(aCIN) + scale(mUSTM) + (1 | Mo), weights = nT, data = df)
+Models for casualties.
+```{r}
+model1b <- lmer(log(GroupDayCas + 1) ~ I(mCAPE/1000) + I(mUSTM/10) + (1|Mo), 
+                weights = nT, 
+                data = df)
 summary(model1b)
 ```
 
 Observed versus predicted.
 ```{r}
-df$preED = exp(predict(model0b))
-df$preCas = exp(predict(model1b)) - 1
+df$preED <- exp(predict(model0b))
+cor(df$preED, df$GroupDayTotalED)
+df$preCas <- exp(predict(model1b)) - 1
 ```
 
 Energy dissipation
@@ -895,7 +646,7 @@ ggplot(df, aes(x = GroupDayTotalED/10^9, y = preED/10^9, color = log10(GroupDayC
          geom_abline(slope = 1) +
          scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
          scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
-  ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Estimated Accumulated Tornado Energy [GW]") +
+  ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Accumulated Tornado Energy [GW]") +
   theme_minimal()
 ```
 
@@ -909,5 +660,24 @@ ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
          scale_y_log10() +
   ylab("Predicted Casualties") + xlab("Observed Casualties") +
   theme_minimal()
+```
+
+Plots for the interaction term.
+```{r}
+library(interplot)
+df$mCAPE2 <- df$mCAPE/1000
+df$mCIN2 <- df$mCIN/100
+model0bX <- lmer(log(GroupDayTotalED) ~ mCAPE2 * mCIN2 + I(mUSTM/10) + I(Yr - 2004) + (1|Mo), 
+                weights = nT, 
+                data = df)
+y <- c(0, 50, 100, 150, 200)
+interplot(m = model0bX, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
+    scale_x_continuous(breaks = seq(-5, 0, 1), 
+                       labels = 100 * seq(-5, 0, 1)) +
+    scale_y_continuous(breaks = log(y/100 + 1), 
+                       labels = y) +
+    xlab(expression(paste("CIN [J/kg]"))) +
+    ylab("CAPE's Effect on ATE [%/1000 J/kg]") +
+    theme_minimal()
 ```
 
