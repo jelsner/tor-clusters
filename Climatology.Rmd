@@ -871,6 +871,18 @@ summary(model0a)
 model0b <- lmer(log(GroupDayTotalED) ~ scale(mHLCY) + scale(aCAPE) * scale(aCIN) + scale(mUSTM) + scale(mVSTM) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model0b)
 
+logLik(model0) #smallest
+logLik(model0a)
+logLik(model0b)
+
+AIC(model0) #smallest
+AIC(model0a)
+AIC(model0b)
+# AIC penalizes by the number of degrees of freedom. t-values greater than 2 are generally good in a model. 
+
+```
+
+```{r}
 model1 <- lmer(log(GroupDayCas + 1) ~ scale(aHLCY) + scale(mCAPE) * scale(mCIN) + scale(Yr) + (1|Mo), weights = nT, data = df)
 summary(model1)
 
@@ -879,6 +891,14 @@ summary(model1a)
 
 model1b <- lmer(log(GroupDayCas + 1) ~  scale(mHLCY) + scale(mCAPE) + scale(aCIN) + scale(mUSTM) + (1 | Mo), weights = nT, data = df)
 summary(model1b)
+
+logLik(model1) #smallest
+logLik(model1a)
+logLik(model1b)
+
+AIC(model1) 
+AIC(model1a)
+AIC(model1b) #smallest
 ```
 
 Observed versus predicted.
