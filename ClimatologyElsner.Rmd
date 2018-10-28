@@ -615,11 +615,12 @@ model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(mUSTM/10) + I(Yr - 2004
 summary(model0a)
 AIC(model0a)
 
-model0b <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(Yr - 2004) + (1|Mo), 
+model0b <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(Yr - 2004) + (1 |Mo), 
                 weights = nT, 
                 data = df)
 summary(model0b)
 AIC(model0b)
+confint(model0b, method = "Wald")
 ```
 
 Models for casualties.
@@ -632,8 +633,9 @@ summary(model1b)
 
 Observed versus predicted.
 ```{r}
-df$preED = exp(predict(model0b))
-df$preCas = exp(predict(model1b)) - 1
+df$preED <- exp(predict(model0b))
+cor(df$preED, df$GroupDayTotalED)
+df$preCas <- exp(predict(model1b)) - 1
 ```
 
 Energy dissipation
