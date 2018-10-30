@@ -730,7 +730,7 @@ ggplot(TS, aes(x = Year, y = avgATE)) +
 
 ggplot(TS, aes(x = Year, y = nBD, color = avgATE)) +
     geom_point() +
-    scale_colour_gradient(low = "lightgray", high = "black") +
+    scale_colour_gradient(low = "red", high = "black") +
     labs(x = "Year", #label axes
        y = "Number of Big Days", 
        colour = "ATE (TW)") +
@@ -751,6 +751,7 @@ ggplot(TS, aes(x = nBD, y = avgATE)) +
     ylab("Average ATE (in TW)") +
     theme_minimal()
 ```
+
 ```{r}
 TS$ATE <- cut(TS$avgATE, 
                        breaks = c(0, 5, 10, 15, 20, 25, 30), 
