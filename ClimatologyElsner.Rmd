@@ -584,10 +584,11 @@ df$mUSTM <- mUSTM
 df$mVSTM <- mVSTM
 ```
 
-Save the `df` so we can work on the models without needing to run all the code above.
+Save `df` so we can work on the models without needing to run all the code above.
 ```{r}
 save(df, file = "df.RData")
 #load("df.RData")
+dim(df)
 ```
 
 Random effects.
@@ -613,6 +614,12 @@ model0b <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10)
                 data = df)
 summary(model0b)
 AIC(model0b)
+
+model0c <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(mHLCY/100) + I(Yr - 2004) + (1 |Mo), 
+                weights = nT, 
+                data = df)
+summary(model0c)
+AIC(model0c)
 confint(model0b, method = "Wald")
 ```
 
