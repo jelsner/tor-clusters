@@ -591,6 +591,19 @@ save(df, file = "df.RData")
 dim(df)
 ```
 
+Time series of environmental factors.
+```{r}
+library(dplyr)
+library(ggplot2)
+df %>%
+  group_by(Year) %>%
+  summarize(mEV = mean(mHLCY)) %>%
+ggplot(., aes(x = Year, y = mEV)) +
+  geom_point() +
+  geom_smooth(method = lm)
+
+```
+
 Random effects.
 ```{r}
 df %>%
