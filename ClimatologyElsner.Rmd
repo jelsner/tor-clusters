@@ -615,7 +615,7 @@ library(dplyr)
 library(ggplot2)
 df %>%
   group_by(Year) %>%
-  summarize(mEV = mean(aVSTM)) %>%
+  summarize(mEV = mean(aHLCY)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
   geom_smooth(method = lm)
@@ -645,7 +645,7 @@ df$mCIN2 <- df$mCIN/100
 df$mBS2 <- df$mBS/10
 
 summary(lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
-                mCAPE2 * mCIN2 + mBS2,
+                aCAPE2 * aCIN2 + aBS2,
              weights = nT, 
              data = df))
 
