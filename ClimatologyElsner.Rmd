@@ -1,5 +1,5 @@
 ---
-title: "Environmental Factors Related to Accumulated Tornado Energy on the Most Prolific Days in the Largest `Outbreaks`"
+title: "Quantifying the relationships between environmental factors and accumulated tornado energy on the most prolific days in the largest ``outbreaks"
 author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
@@ -108,7 +108,7 @@ Next group the tornadoes based on the space-time distances. This is done with th
 
 The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
  
-The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 100000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
+The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 50000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
 ```{r}
 stime <- proc.time()
 tree <- hclust(dst, method = "single")
@@ -423,6 +423,7 @@ groupDayCentroids.sfdfT %>%
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
+BigDaysInLargeGroups.sfdfT$HullArea <- st_area(BigDaysInLargeGroups.sfdfT)
 BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
@@ -547,11 +548,16 @@ library(raster)
 aCAPE <- numeric()
 aHLCY <- numeric()
 aCIN <- numeric()
+aUSTM <- numeric()
+aVSTM <- numeric()
+aBS <- numeric()
+aRATIO <- numeric()
 mCAPE <- numeric()
 mHLCY <- numeric()
 mCIN <- numeric()
 mUSTM <- numeric()
 mVSTM <- numeric()
+mBS <- numeric()
 
 for(i in 1:length(slug)){
   print(i)
@@ -561,14 +567,21 @@ for(i in 1:length(slug)){
   CIN.rl <- raster(rb, layer = 376)
   USTM.rl <- raster(rb, layer = 324)
   VSTM.rl <- raster(rb, layer = 325)
-  aCAPE <- c(aCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = mean)))
-  aHLCY <- c(aHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = mean)))
-  aCIN <- c(aCIN, mean(raster::extract(CIN.rl, df[i, ], fun = mean)))
-  mCAPE <- c(mCAPE, mean(raster::extract(CAPE.rl, df[i, ], fun = max)))
-  mHLCY <- c(mHLCY, mean(raster::extract(HLCY.rl, df[i, ], fun = max)))
-  mCIN <- c(mCIN, mean(raster::extract(CIN.rl, df[i, ], fun = min)))
-  mUSTM <- c(mUSTM, mean(raster::extract(USTM.rl, df[i, ], fun = max)))
-  mVSTM <- c(mVSTM, mean(raster::extract(VSTM.rl, df[i, ], fun = max)))
+  BS.rl <- sqrt(USTM.rl^2 + VSTM.rl^2)
+  RATIO.rl <- CAPE.rl/abs(CIN.rl)
+  aCAPE <- c(aCAPE, as.numeric(extract(CAPE.rl, df[i, ], fun = mean)))
+  aHLCY <- c(aHLCY, as.numeric(extract(HLCY.rl, df[i, ], fun = mean)))
+  aCIN <- c(aCIN, as.numeric(extract(CIN.rl, df[i, ], fun = mean)))
+  aUSTM <- c(aUSTM, as.numeric(extract(USTM.rl, df[i, ], fun = mean)))
+  aVSTM <- c(aVSTM, as.numeric(extract(VSTM.rl, df[i, ], fun = mean)))
+  aBS <- c(aBS, as.numeric(extract(BS.rl, df[i, ], fun = mean)))
+  aRATIO <- c(aRATIO, as.numeric(extract(RATIO.rl, df[i, ], fun = mean)))
+  mCAPE <- c(mCAPE, as.numeric(extract(CAPE.rl, df[i, ], fun = max)))
+  mHLCY <- c(mHLCY, as.numeric(extract(HLCY.rl, df[i, ], fun = max)))
+  mCIN <- c(mCIN, as.numeric(extract(CIN.rl, df[i, ], fun = min)))
+  mUSTM <- c(mUSTM, as.numeric(extract(USTM.rl, df[i, ], fun = max)))
+  mVSTM <- c(mVSTM, as.numeric(extract(VSTM.rl, df[i, ], fun = max)))
+  mBS <- c(mBS, as.numeric(extract(BS.rl, df[i, ], fun = max)))
 }
 ```
 
@@ -577,14 +590,19 @@ Add environmental data values to the group day means data frame.
 df$aCAPE <- aCAPE
 df$aHLCY <- aHLCY
 df$aCIN <- aCIN
+df$aUSTM <- aUSTM
+df$aVSTM <- aVSTM
+df$aBS <- aBS
+df$aRATIO <- aRATIO
 df$mCAPE <- mCAPE
 df$mHLCY <- mHLCY
 df$mCIN <- mCIN
 df$mUSTM <- mUSTM
 df$mVSTM <- mVSTM
+df$mBS <- mBS
 ```
 
-Save `df` so we can work on the models without needing to run all the code above.
+Save `df` so we can work on the models below without needing to run all the code above.
 ```{r}
 save(df, file = "df.RData")
 #load("df.RData")
@@ -597,7 +615,7 @@ library(dplyr)
 library(ggplot2)
 df %>%
   group_by(Year) %>%
-  summarize(mEV = mean(mHLCY)) %>%
+  summarize(mEV = mean(aVSTM)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
   geom_smooth(method = lm)
@@ -616,7 +634,22 @@ Models for ATE.
 ```{r}
 library(lme4)
 
-model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(mUSTM/10) + I(Yr - 2004) + (1|Mo), 
+df$aCAPE2 <- df$aCAPE/1000
+df$aHLCY2 <- df$aHLCY/100
+df$aCIN2 <- df$aCIN/100
+df$aBS2 <- df$aBS/10
+
+df$mCAPE2 <- df$mCAPE/1000
+df$mHLCY2 <- df$mHLCY/100
+df$mCIN2 <- df$mCIN/100
+df$mBS2 <- df$mBS/10
+
+summary(lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
+                mCAPE2 * mCIN2 + mBS2,
+             weights = nT, 
+             data = df))
+
+model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(Yr - 2004) + (1|Mo), 
                 weights = nT, 
                 data = df)
 summary(model0a)
