@@ -615,7 +615,7 @@ library(dplyr)
 library(ggplot2)
 df %>%
   group_by(Year) %>%
-  summarize(mEV = mean(aHLCY)) %>%
+  summarize(mEV = mean(mBS)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
   geom_smooth(method = lm)
@@ -630,24 +630,48 @@ df %>%
             nT = sum(nT))
 ```
 
-Models for ATE.
+Models for ATE. First scale the variables.
 ```{r}
-library(lme4)
-
 df$aCAPE2 <- df$aCAPE/1000
 df$aHLCY2 <- df$aHLCY/100
 df$aCIN2 <- df$aCIN/100
 df$aBS2 <- df$aBS/10
+df$aUSTM2 <- df$aUSTM/10
+df$aVSTM2 <- df$aVSTM/10
 
 df$mCAPE2 <- df$mCAPE/1000
 df$mHLCY2 <- df$mHLCY/100
 df$mCIN2 <- df$mCIN/100
 df$mBS2 <- df$mBS/10
+df$mUSTM2 <- df$mUSTM/10
+df$mVSTM2 <- df$mVSTM/10
+```
 
-summary(lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
-                aCAPE2 * aCIN2 + aBS2,
+```{r}
+library(lme4)
+summary(lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (mCAPE2:mCIN2|Mo) + 
+                mCAPE2 + mCIN2 + mUSTM2 + mHLCY2,
              weights = nT, 
              data = df))
+
+df2 <- df %>%
+  filter(Mo > 2 & Mo < 7)
+
+summary(lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
+                     mCAPE2 * mCIN2 + mBS2,
+              weights = nT, 
+              data = df2))
+
+df3 <- df %>%
+  filter(Mo <= 2 | Mo >= 7)
+
+summary(lm(log(GroupDayTotalED) ~ 
+                     mCAPE2 + mCIN2 + mUSTM2,
+              weights = nT, 
+              data = df3))
+
+
+
 
 model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(Yr - 2004) + (1|Mo), 
                 weights = nT, 
