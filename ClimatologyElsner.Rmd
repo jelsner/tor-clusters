@@ -618,6 +618,7 @@ df %>%
   summarize(mEV = mean(mBS)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
+  scale_y_continuous(limits = c(0, NA)) +
   geom_smooth(method = lm)
 
 ```
