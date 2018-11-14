@@ -649,49 +649,55 @@ df$mVSTM2 <- df$mVSTM/10
 
 ```{r}
 library(lme4)
-summary(lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (mCAPE2:mCIN2|Mo) + 
-                mCAPE2 + mCIN2 + mUSTM2 + mHLCY2,
+model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
+                  mCAPE2 * mCIN2 + mBS2,
              weights = nT, 
-             data = df))
+             data = df)
 
 df2 <- df %>%
   filter(Mo > 2 & Mo < 7)
 
-summary(lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
-                     mCAPE2 * mCIN2 + mBS2,
+model2 <- lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
+                     mCAPE2 + mCIN2 + mBS2,
               weights = nT, 
-              data = df2))
+              data = df2)
 
 df3 <- df %>%
   filter(Mo <= 2 | Mo >= 7)
 
-summary(lm(log(GroupDayTotalED) ~ 
-                     mCAPE2 + mCIN2 + mUSTM2,
+model3 <- lm(log(GroupDayTotalED) ~ 
+                     mCAPE2 * mCIN2 + mUSTM2,
               weights = nT, 
-              data = df3))
+              data = df3)
 
 
-
-
-model0a <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) + I(Yr - 2004) + (1|Mo), 
-                weights = nT, 
-                data = df)
-summary(model0a)
-AIC(model0a)
-
-model0b <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(Yr - 2004) + (1 |Mo), 
-                weights = nT, 
-                data = df)
-summary(model0b)
-AIC(model0b)
-
-model0c <- lmer(log(GroupDayTotalED) ~ I(mCAPE/1000) * I(mCIN/100) + I(mUSTM/10) + I(mHLCY/100) + I(Yr - 2004) + (1 |Mo), 
-                weights = nT, 
-                data = df)
-summary(model0c)
-AIC(model0c)
-confint(model0b, method = "Wald")
+AIC(model2)
+confint(model2, method = "Wald")
 ```
+
+Table of coefficients.
+```{r}
+library(xtable)
+x <- summary(model1)
+xtable(x$coefficients, digits = 3)
+```
+
+Plots for the interaction term.
+```{r}
+library(interplot)
+df$mCAPE2 <- df$mCAPE/1000
+
+y <- c(0, 50, 100, 150, 200)
+interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
+    scale_x_continuous(breaks = seq(-5, 0, 1), 
+                       labels = 100 * seq(-5, 0, 1)) +
+    scale_y_continuous(breaks = log(y/100 + 1), 
+                       labels = y) +
+    xlab(expression(paste("CIN [J/kg]"))) +
+    ylab("CAPE's Effect on ATE [%/1000 J/kg]") +
+    theme_minimal()
+```
+
 
 Models for casualties.
 ```{r}
@@ -730,24 +736,5 @@ ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
          scale_y_log10() +
   ylab("Predicted Casualties") + xlab("Observed Casualties") +
   theme_minimal()
-```
-
-Plots for the interaction term.
-```{r}
-library(interplot)
-df$mCAPE2 <- df$mCAPE/1000
-df$mCIN2 <- df$mCIN/100
-model0bX <- lmer(log(GroupDayTotalED) ~ mCAPE2 * mCIN2 + I(mUSTM/10) + I(Yr - 2004) + (1|Mo), 
-                weights = nT, 
-                data = df)
-y <- c(0, 50, 100, 150, 200)
-interplot(m = model0bX, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
-    scale_x_continuous(breaks = seq(-5, 0, 1), 
-                       labels = 100 * seq(-5, 0, 1)) +
-    scale_y_continuous(breaks = log(y/100 + 1), 
-                       labels = y) +
-    xlab(expression(paste("CIN [J/kg]"))) +
-    ylab("CAPE's Effect on ATE [%/1000 J/kg]") +
-    theme_minimal()
 ```
 
