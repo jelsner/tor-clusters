@@ -713,7 +713,7 @@ p1 <- ggplot(out.df, aes(x = mCIN, y = coef2)) +
   geom_ribbon(aes(x = mCIN, ymin = lb2, ymax = ub2), fill = "gray70", alpha = .3) +
   scale_x_continuous(limits = c(-500, 0)) +
   xlab(expression(paste("CIN [J/kg]"))) + 
-  ylab("CAPE's Effect on ATE [% Increase/1000 J/kg]") +
+  ylab("CAPE's Effect on Accumulated Tornado Energy\n[% Increase/1000 J/kg]") +
   theme_minimal()
 
 p2 <- ggplot(df, aes(x = mCIN)) +
@@ -725,7 +725,16 @@ library(patchwork)
 p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
 
 
-approx(x = out.df$mCIN2, y = out.df$coef, xout = -1.5)$y
+# CIN at 250 J/kg
+(exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -2.5)$y) - 1) * 100
+(exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -2.5)$y) - 1) * 100
+(exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -2.5)$y) - 1) * 100
+
+# CIN at 50 J/kg
+(exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -.5)$y) - 1) * 100
+(exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -.5)$y) - 1) * 100
+(exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -.5)$y) - 1) * 100
+
 ```
 
 
