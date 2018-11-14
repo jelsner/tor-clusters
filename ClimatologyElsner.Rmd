@@ -659,17 +659,19 @@ df2 <- df %>%
   filter(Mo > 2 & Mo < 7)
 
 model2 <- lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
-                     mCAPE2 + mCIN2 + mBS2,
+                     mCAPE2 * mCIN2 + mBS2,
               weights = nT, 
               data = df2)
+summary(model2)
 
 df3 <- df %>%
   filter(Mo <= 2 | Mo >= 7)
 
 model3 <- lm(log(GroupDayTotalED) ~ 
-                     mCAPE2 * mCIN2 + mUSTM2,
+                     mCAPE2 + mCIN2,
               weights = nT, 
               data = df3)
+summary(model3)
 
 
 AIC(model2)
@@ -698,7 +700,7 @@ interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
     theme_minimal()
 ```
 
-Locate specific values.
+Custom plot.
 ```{r}
 out.df <- interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", plot = FALSE)
 
@@ -723,8 +725,10 @@ p2 <- ggplot(df, aes(x = mCIN)) +
 
 library(patchwork)
 p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
+```
 
-
+Locate specific values on the plot.
+```{r}
 # CIN at 250 J/kg
 (exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -2.5)$y) - 1) * 100
 (exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -2.5)$y) - 1) * 100
@@ -734,13 +738,13 @@ p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
 (exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -.5)$y) - 1) * 100
 (exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -.5)$y) - 1) * 100
 (exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -.5)$y) - 1) * 100
-
 ```
 
 
 Models for casualties.
 ```{r}
-model1b <- lmer(log(GroupDayCas + 1) ~ I(mCAPE/1000) + I(mUSTM/10) + (1|Mo), 
+model1b <- lmer(log(GroupDayCas + 1) ~ (1|Mo) +
+                mCAPE2 +  mBS2,
                 weights = nT, 
                 data = df)
 summary(model1b)
@@ -748,9 +752,10 @@ summary(model1b)
 
 Observed versus predicted.
 ```{r}
-df$preED <- exp(predict(model0b))
-cor(df$preED, df$GroupDayTotalED)
+df$preATE <- exp(predict(model1))
+cor(df$preATE, df$GroupDayTotalED)
 df$preCas <- exp(predict(model1b)) - 1
+cor(df$preCas, df$GroupDayCas)
 ```
 
 Energy dissipation
