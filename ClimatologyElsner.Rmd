@@ -686,7 +686,6 @@ xtable(x$coefficients, digits = 3)
 Plots for the interaction term.
 ```{r}
 library(interplot)
-df$mCAPE2 <- df$mCAPE/1000
 
 y <- c(0, 50, 100, 150, 200)
 interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
@@ -697,6 +696,36 @@ interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
     xlab(expression(paste("CIN [J/kg]"))) +
     ylab("CAPE's Effect on ATE [%/1000 J/kg]") +
     theme_minimal()
+```
+
+Locate specific values.
+```{r}
+out.df <- interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", plot = FALSE)
+
+out.df <- out.df %>%
+  mutate(mCIN = mCIN2 * 100,
+         coef2 = (exp(coef) - 1) * 100,
+         lb2 = (exp(lb) - 1) * 100,
+         ub2 = (exp(ub) - 1) * 100)
+
+p1 <- ggplot(out.df, aes(x = mCIN, y = coef2)) +
+  geom_line() +
+  geom_ribbon(aes(x = mCIN, ymin = lb2, ymax = ub2), fill = "gray70", alpha = .3) +
+  scale_x_continuous(limits = c(-500, 0)) +
+  xlab(expression(paste("CIN [J/kg]"))) + 
+  ylab("CAPE's Effect on ATE [% Increase/1000 J/kg]") +
+  theme_minimal()
+
+p2 <- ggplot(df, aes(x = mCIN)) +
+  geom_histogram(fill = "gray70", color = "white") +
+  scale_x_continuous(limits = c(-500, 0)) +
+  theme_void()
+
+library(patchwork)
+p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
+
+
+approx(x = out.df$mCIN2, y = out.df$coef, xout = -1.5)$y
 ```
 
 
