@@ -608,7 +608,7 @@ save(df, file = "df.RData")
 dim(df)
 ```
 
-Time series of environmental factors.
+Time series of environmental factors. Mean of the maximum Bulk Shear for each big day for each month.
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -622,7 +622,7 @@ ggplot(., aes(x = Year, y = mEV)) +
 
 ```
 
-Random effects.
+Random effects. Summarize the average ATE and number of tornadoes by month.
 ```{r}
 df %>%
   group_by(Mo) %>%
@@ -709,6 +709,10 @@ p2 <- ggplot(df, aes(x = mCIN)) +
   scale_x_continuous(limits = c(-500, 0)) +
   theme_void()
 
+#library(devtools)
+#install.packages("githubinstall")
+#library(githubinstall)
+#githubinstall("patchwork")   From: thomasp85/patchwork
 library(patchwork)
 p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
 ```
