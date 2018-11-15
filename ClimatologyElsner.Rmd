@@ -503,8 +503,7 @@ BigDaysInLargeGroups.sfdfT %>%
 Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
-corr <- cor.test(x=BigDaysInLargeGroups.sfdfT$ATE, y=BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
-corr
+cor.test(x = BigDaysInLargeGroups.sfdfT$ATE, y = BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
 ```
 Spearman's rank correlation between ATE and number of tornadoes is .669
 
@@ -569,19 +568,19 @@ for(i in 1:length(slug)){
   VSTM.rl <- raster(rb, layer = 325)
   BS.rl <- sqrt(USTM.rl^2 + VSTM.rl^2)
   RATIO.rl <- CAPE.rl/abs(CIN.rl)
-  aCAPE <- c(aCAPE, as.numeric(extract(CAPE.rl, df[i, ], fun = mean)))
-  aHLCY <- c(aHLCY, as.numeric(extract(HLCY.rl, df[i, ], fun = mean)))
-  aCIN <- c(aCIN, as.numeric(extract(CIN.rl, df[i, ], fun = mean)))
-  aUSTM <- c(aUSTM, as.numeric(extract(USTM.rl, df[i, ], fun = mean)))
-  aVSTM <- c(aVSTM, as.numeric(extract(VSTM.rl, df[i, ], fun = mean)))
-  aBS <- c(aBS, as.numeric(extract(BS.rl, df[i, ], fun = mean)))
-  aRATIO <- c(aRATIO, as.numeric(extract(RATIO.rl, df[i, ], fun = mean)))
-  mCAPE <- c(mCAPE, as.numeric(extract(CAPE.rl, df[i, ], fun = max)))
-  mHLCY <- c(mHLCY, as.numeric(extract(HLCY.rl, df[i, ], fun = max)))
-  mCIN <- c(mCIN, as.numeric(extract(CIN.rl, df[i, ], fun = min)))
-  mUSTM <- c(mUSTM, as.numeric(extract(USTM.rl, df[i, ], fun = max)))
-  mVSTM <- c(mVSTM, as.numeric(extract(VSTM.rl, df[i, ], fun = max)))
-  mBS <- c(mBS, as.numeric(extract(BS.rl, df[i, ], fun = max)))
+  aCAPE <- c(aCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = mean)))
+  aHLCY <- c(aHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = mean)))
+  aCIN <- c(aCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = mean)))
+  aUSTM <- c(aUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = mean)))
+  aVSTM <- c(aVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = mean)))
+  aBS <- c(aBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = mean)))
+  aRATIO <- c(aRATIO, as.numeric(raster::extract(RATIO.rl, df[i, ], fun = mean)))
+  mCAPE <- c(mCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = max)))
+  mHLCY <- c(mHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = max)))
+  mCIN <- c(mCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = min)))
+  mUSTM <- c(mUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = max)))
+  mVSTM <- c(mVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = max)))
+  mBS <- c(mBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = max)))
 }
 ```
 
@@ -654,6 +653,7 @@ model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) +
                   mCAPE2 * mCIN2 + mBS2,
              weights = nT, 
              data = df)
+summary(model1)
 
 df2 <- df %>%
   filter(Mo > 2 & Mo < 7)
