@@ -688,20 +688,6 @@ xtable(x$coefficients, digits = 3)
 Plots for the interaction term.
 ```{r}
 library(interplot)
-
-y <- c(0, 50, 100, 150, 200)
-interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", hist = TRUE, xmin = -3) +
-    scale_x_continuous(breaks = seq(-5, 0, 1), 
-                       labels = 100 * seq(-5, 0, 1)) +
-    scale_y_continuous(breaks = log(y/100 + 1), 
-                       labels = y) +
-    xlab(expression(paste("CIN [J/kg]"))) +
-    ylab("CAPE's Effect on ATE [%/1000 J/kg]") +
-    theme_minimal()
-```
-
-Custom plot.
-```{r}
 out.df <- interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", plot = FALSE)
 
 out.df <- out.df %>%
@@ -764,16 +750,17 @@ cor(df$preCas, df$GroupDayCas)
 Observed versus prediction plot for ATE.
 ```{r}
 library(ggrepel)
+library(viridis)
 
 model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
   filter(abs(.scresid) > 2)
 
-ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1)))+
-  scale_color_continuous(guide=FALSE) +
+ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1))) +
+#         geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
+         scale_color_viridis_c(guide = FALSE, direction = -1) +
          geom_point() + 
-         geom_smooth(method = lm, color = "red", se = FALSE) +
-         geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), data = model1.df2, size = 1.75) +
+         geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 2) +
          geom_abline(slope = 1) +
          scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
          scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
