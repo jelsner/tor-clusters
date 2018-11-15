@@ -740,7 +740,7 @@ Locate specific values on the plot.
 (exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -.5)$y) - 1) * 100
 ```
 
-Models for casualties.
+Models for casualties. NOT USE.
 ```{r}
 model1b <- lmer(log(GroupDayCas + 1) ~ (1|Mo) +
                 mCAPE2 +  mBS2,
@@ -763,16 +763,16 @@ library(ggrepel)
 
 model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
-  filter(abs(.scresid) > 1.8)
+  filter(abs(.scresid) > 2)
 
 ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1)))+
   scale_color_continuous(guide=FALSE) +
          geom_point() + 
-#         geom_smooth(method = lm, color = "red", se = FALSE) +
-         geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), data = model1.df2) +
+         geom_smooth(method = lm, color = "red", se = FALSE) +
+         geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), data = model1.df2, size = 1.75) +
          geom_abline(slope = 1) +
-         scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
-         scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c("1", "10", "100", "1000", "10,000", "100,000")) +
+         scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
+         scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
   ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Accumulated Tornado Energy [GW]") +
   theme_minimal()
 ```
@@ -798,9 +798,7 @@ ggplot(plt.df, aes(x = x, y = y)) +
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray70", alpha = .3)
 ```
 
-
-
-Observed versus prediction plot for casualties.
+Observed versus prediction plot for casualties. NOT USE.
 ```{r}
 ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
   scale_color_continuous(guide=FALSE) +
