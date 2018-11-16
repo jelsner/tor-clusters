@@ -932,317 +932,44 @@ ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
   theme_minimal()
 ```
 
-##Overpredicted
-
-Extract the Hull, centroids, and tornadoes for the Feb 20, 2014 big day. 
-
+Create a data frame of the over predicted big days. 
 ```{r}
-Feb20 <- BigDaysInLargeGroups.sfdfT %>%
+#overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
+#overpreddays <- BigDaysInLargeGroups.sfdfT %>%
+#  filter(cDate %in% overdays)    **Returning nothing
+
+overpredday1 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "2014-02-20")
-Feb20 <- st_convex_hull(Feb20)
-
-Feb20centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2014-02-20")
-
-Feb20tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 5861)
-```
-
-Make a map of the Feb 20 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Feb20) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Feb20tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Feb20centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-Extract the Hull, centroids, and tornadoes for the Apr 19, 2014 big day. 
-
-```{r}
-Apr19 <- BigDaysInLargeGroups.sfdfT %>%
+overpredday2 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "1995-04-19")
-Apr19 <- st_convex_hull(Apr19)
-
-Apr19centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "1995-04-19")
-
-Apr19tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 391)
-```
-
-Make a map of the Apr 19 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Apr19) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Apr19tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Apr19centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-Extract the Hull, centroids, and tornadoes for the May 18, 2000 big day. 
-
-```{r}
-May18 <- BigDaysInLargeGroups.sfdfT %>%
+overpredday3 <- BigDaysInLargeGroups.sfdfT%>%
   filter(cDate == "2000-05-18")
-May18 <- st_convex_hull(May18)
-
-May18centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2000-05-18")
-
-May18tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 2113)
-```
-
-Make a map of the Feb 20 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(May18) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(May18tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(May18centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-Extract the Hull, centroids, and tornadoes for the April 28, 2011 big day. 
-
-```{r}
-Apr28 <- BigDaysInLargeGroups.sfdfT %>%
+overpredday4 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "2011-04-28")
-Apr28 <- st_convex_hull(Apr28)
-
-Apr28centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2011-04-28")
-
-Apr28tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 5200)
+overpred <- rbind(overpredday1,overpredday2,overpredday3,overpredday4)
 ```
 
-Make a map of the April 28 tornado day. 
+Create a data frame of the under predicted big days. 
 ```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Apr28) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Apr28tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Apr28centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
+# underdays <- c("2003-05-04", "2008-02-05", "2011-04-27") 
+# underpreddays <- BigDaysInLargeGroups.sfdfT %>%
+#  filter(cDate %in% overdays)    **Returning nothing
 
-## Underpredicted
-
-Extract the Hull, centroids, and tornadoes for the April 27, 2011 big day. 
-
-```{r}
-Apr27 <- BigDaysInLargeGroups.sfdfT %>%
-  filter(cDate == "2011-04-27")
-Apr27 <- st_convex_hull(Apr27)
-
-Apr27centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2011-04-27")
-
-Apr27tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 5200)
-```
-
-Make a map of the April 27 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Apr27) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Apr27tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Apr27centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-Extract the Hull, centroids, and tornadoes for the May 4, 2003 big day. 
-
-```{r}
-May04 <- BigDaysInLargeGroups.sfdfT %>%
+underpredday1 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "2003-05-04")
-May04 <- st_convex_hull(May04)
-
-May04centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2003-05-04")
-
-May04tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 2939)
-```
-
-Make a map of the May 4 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(May04) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(May04tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(May04centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-Extract the Hull, centroids, and tornadoes for the February 5, 2008 big day. 
-
-```{r}
-Feb05 <- BigDaysInLargeGroups.sfdfT %>%
+underpredday2 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "2008-02-05")
-Feb05 <- st_convex_hull(Feb05)
-
-Feb05centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2008-02-05")
-
-Feb05tornadoes <- Tor.sfdfT %>% 
-  filter(groupNumber == 4328)
-```
-
-Make a map of the Feb 5 tornado day. 
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
-  tm_format_World(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(Feb05) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "darkgray") + 
-  tm_fill(col = "gray") +
-tm_shape(Feb05tornadoes) +
-  tm_symbols(size = 0.25, col = "black") +
-tm_shape(Feb05centroid) +
-  tm_symbols(size = 0.5, col = "darkgray", shape =24) 
-```
-
-```{r}
-overhulls <- rbind(Feb20, Apr19, May18, Apr28)
-underhulls <- rbind(Apr27, May04, Feb05)
-```
-
-```{r}
-overpred1 <- df %>%
-  filter(cDate == "2014-02-20")
-overpred2 <- df %>%
-  filter(cDate == "1995-04-1995")
-overpred3 <- df %>%
-  filter(cDate == "2000-05-18")
-overpred4 <- df %>%
-  filter(cDate == "2011-04-28")
-overpred <- rbind(overpred1,overpred2,overpred3,overpred4)
-```
-
-```{r}
-underpred1 <- df %>%
-  filter(cDate == "2003-05-04")
-underpred2 <- df %>%
-  filter(cDate == "2008-02-05")
-underpred3 <- df %>%
+underpredday3 <- BigDaysInLargeGroups.sfdfT %>%
   filter(cDate == "2011-04-27")
-underpred <- rbind(underpred1,underpred2,underpred3)
+underpred <- rbind(underpredday1,underpredday2,underpredday3)
 ```
 
+#order them by date 
+```{r}
+test<- rbind(overpredday2, overpredday3, underpredday1, underpredday2, underpredday3, overpredday4, overpredday1)
+```
+
+Create the convex hulls for the over and under predicted. 
 ```{r}
 overpred <- st_convex_hull(overpred)
 overpred <- st_transform(overpred, 
@@ -1253,13 +980,64 @@ underpred <- st_transform(underpred,
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
+Map the over vs under predicted big days. Color blue and magenta. 
 ```{r}
 tm_shape(overpred) +
-  tm_polygons(alpha = .1) + 
+  tm_polygons(col = NA, lwd = 2, alpha = 0.2, border.col = "blue") + 
   tm_fill(col = "blue") +
 tm_shape(underpred) +
-  tm_polygons(alpha = .1) + 
+  tm_polygons(col = NA, lwd = 2, alpha = 0.2, border.col = "magenta") + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders() +
   tm_compass() + tm_scale_bar() 
- ```
+```
+
+```{r}
+overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
+
+overpred1 <- Tor.sfdfT %>%
+  filter(cDate == "2014-02-20")
+overpred2 <- Tor.sfdfT%>%
+  filter(cDate == "1995-04-19")
+overpred3 <- Tor.sfdfT%>%
+  filter(cDate == "2000-05-18")
+overpred4 <- Tor.sfdfT %>%
+  filter(cDate == "2011-04-28")
+
+```
+
+```{r}
+underpred1 <- Tor.sfdfT %>%
+  filter(cDate == "2003-05-04")
+underpred2 <- Tor.sfdfT %>%
+  filter(cDate == "2008-02-05")
+underpred3 <- Tor.sfdfT %>%
+  filter(cDate == "2011-04-27")
+dat <- rbind(underpred1,underpred2,underpred3,overpred1,overpred2,overpred3,overpred4)
+dat <- rbind(overpred2, overpred3, underpred1, underpred2, underpred3, overpred4, overpred1)
+```
+
+```{r}
+work <- c("over", "over", "under", "under", "under", "over", "over")
+test <- cbind(test, work)
+
+tm_shape(stateBorders) + 
+  tm_borders(col = "grey") +
+  tm_layout(legend.outside = TRUE) +
+  tm_shape(dat) +
+  tm_facets(by = "cDate", ncol = 3)  +
+  tm_symbols(col = "mag", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
+  tm_layout(panel.labels = paste(test$cDate, test$work), panel.label.size = 1, panel.label.bg.color = "grey90") 
+#the dates are wrong
+```
+
+It over predicts when there are less tornadoes. Under predicts when there are more. 
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
