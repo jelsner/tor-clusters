@@ -1216,4 +1216,50 @@ tm_shape(Feb05centroid) +
   tm_symbols(size = 0.5, col = "darkgray", shape =24) 
 ```
 
+```{r}
+overhulls <- rbind(Feb20, Apr19, May18, Apr28)
+underhulls <- rbind(Apr27, May04, Feb05)
+```
 
+```{r}
+overpred1 <- df %>%
+  filter(cDate == "2014-02-20")
+overpred2 <- df %>%
+  filter(cDate == "1995-04-1995")
+overpred3 <- df %>%
+  filter(cDate == "2000-05-18")
+overpred4 <- df %>%
+  filter(cDate == "2011-04-28")
+overpred <- rbind(overpred1,overpred2,overpred3,overpred4)
+```
+
+```{r}
+underpred1 <- df %>%
+  filter(cDate == "2003-05-04")
+underpred2 <- df %>%
+  filter(cDate == "2008-02-05")
+underpred3 <- df %>%
+  filter(cDate == "2011-04-27")
+underpred <- rbind(underpred1,underpred2,underpred3)
+```
+
+```{r}
+overpred <- st_convex_hull(overpred)
+overpred <- st_transform(overpred, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+
+underpred <- st_convex_hull(underpred)
+underpred <- st_transform(underpred, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r}
+tm_shape(overpred) +
+  tm_polygons(alpha = .1) + 
+  tm_fill(col = "blue") +
+tm_shape(underpred) +
+  tm_polygons(alpha = .1) + 
+tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
+  tm_borders() +
+  tm_compass() + tm_scale_bar() 
+ ```
