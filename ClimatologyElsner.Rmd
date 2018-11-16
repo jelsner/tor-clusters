@@ -13,13 +13,13 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Set working directory and load packages.
 ```{r}
-library(tidyverse)
 library(lubridate)
 library(sf)
 library(tmap)
 library(USAboundaries)
 library(rgeos)
 library(dplyr)
+library(ggplot2)
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
@@ -262,6 +262,7 @@ False Negative: How many Forbes/Fuhrmann picked up that we did not
 FPFN <- read.csv("FPFN_Forbes.csv")
 FPFN
 ```
+
 Graph of the percent match values between ours and the Forbes 2004. 
 ```{r}
 ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
@@ -318,7 +319,6 @@ TotalBigDays <- Tor.sfdfT %>%
 dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
 25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
-
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
@@ -421,6 +421,8 @@ groupDayCentroids.sfdfT %>%
     theme_minimal()
 ```
 
+There is no long-term trend in annual average outbreak area. There is no long-term trend in annual average outbreak density (number of tornadoes per unit area).
+
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
 BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
@@ -478,22 +480,21 @@ tm_shape(counties.sf) +
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
 
-Year/date plot. Code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
+Year/date plot. Initial code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
 df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
   mutate(lTED = log10(GroupDayTotalED),
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
 ggplot(df, aes(y = Year)) +
   geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
-  scale_size(range = c(1, 5), name = "Accumulated\nTornado\nEnergy (GW)", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
+  scale_size(range = c(1, 5), name = "Accumulated\nTornado\nEnergy (ATE)\n[GW]", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
   scale_x_date(date_breaks = "months", date_labels = "%b") +
   scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
   xlab("") +  ylab("") +
   geom_point(aes(size = lTED, x = plot_date), color = "gray", alpha = .5) +
   theme_minimal()
 ```
-
-Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
+**Figure 5: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
 ```{r}
 BigDaysInLargeGroups.sfdfT %>%
@@ -504,7 +505,9 @@ BigDaysInLargeGroups.sfdfT %>%
 Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
-cor.test(x = BigDaysInLargeGroups.sfdfT$ATE, y = BigDaysInLargeGroups.sfdfT$nT, method = 'spearman')
+cor.test(x = BigDaysInLargeGroups.sfdfT$ATE, 
+         y = BigDaysInLargeGroups.sfdfT$nT, 
+         method = 'spearman')
 ```
 Spearman's rank correlation between ATE and number of tornadoes is .669
 
@@ -513,7 +516,7 @@ Density plot of ATE.
 labels <- c("10", "100", "1000","10000", "100000")
 
 ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
-  geom_histogram(binwidth = .5, color = "white") +
+  geom_histogram(binwidth = .5, color = "white", fill = "gray70") +
   scale_x_continuous(breaks = 10:14, labels= labels) +
   xlab("Accumulated Tornado Energy [GW]") +
   ylab("Frequency") +
