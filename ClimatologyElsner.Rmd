@@ -511,6 +511,21 @@ cor.test(x = BigDaysInLargeGroups.sfdfT$ATE,
 ```
 Spearman's rank correlation between ATE and number of tornadoes is .669
 
+Time series of annual number of big days in large groups and the annual average ATE across those days.
+```{r}
+BigDaysInLargeGroups.sfdfT %>%
+  group_by(Year) %>%
+  summarize(nBD = n(),
+            avgATE = mean(ATE)) %>%
+ggplot(., aes(x = Year, y = nBD)) +
+    geom_point(aes(size = avgATE), color = "gray70", alpha = .5) +
+    scale_size_continuous(name = "ATE [GW]") +
+    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
+    xlab("") + ylab("Number of Big Days") +
+    theme_minimal() 
+```
+**Figure 6: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
+
 Density plot of ATE.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
@@ -522,6 +537,7 @@ ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
   ylab("Frequency") +
   theme_minimal()
 ```
+**Figure 7: Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
 
 ## Part 2: Environmental data
 
@@ -623,7 +639,6 @@ ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
   scale_y_continuous(limits = c(0, NA)) +
   geom_smooth(method = lm)
-
 ```
 
 Random effects. Summarize the average ATE and number of tornadoes by month.
@@ -654,10 +669,11 @@ df$mVSTM2 <- df$mVSTM/10
 ```{r}
 library(lme4)
 model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
-                  mCAPE2 * mCIN2 + mBS2,
+                  mCAPE2 + mBS2,
              weights = nT, 
              data = df)
 summary(model1)
+confint(model1, method = "Wald")
 
 df2 <- df %>%
   filter(Mo > 2 & Mo < 7)
@@ -689,7 +705,13 @@ x <- summary(model1)
 xtable(x$coefficients, digits = 3)
 ```
 
-Plots for the interaction term.
+Observed versus predicted.
+```{r}
+df$preATE <- exp(predict(model1))
+cor(df$preATE, df$GroupDayTotalED)
+```
+
+Plots for the interaction term. NOT USED.
 ```{r}
 library(interplot)
 out.df <- interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", plot = FALSE)
@@ -713,15 +735,11 @@ p2 <- ggplot(df, aes(x = mCIN)) +
   scale_x_continuous(limits = c(-500, 0)) +
   theme_void()
 
-#library(devtools)
-#install.packages("githubinstall")
-#library(githubinstall)
-#githubinstall("patchwork")   From: thomasp85/patchwork
 library(patchwork)
 p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
 ```
 
-Locate specific values on the plot.
+Locate specific values on the plot. NOT USED.
 ```{r}
 # CIN at 250 J/kg
 (exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -2.5)$y) - 1) * 100
@@ -734,35 +752,20 @@ Locate specific values on the plot.
 (exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -.5)$y) - 1) * 100
 ```
 
-Models for casualties. NOT USE.
-```{r}
-model1b <- lmer(log(GroupDayCas + 1) ~ (1|Mo) +
-                mCAPE2 +  mBS2,
-                weights = nT, 
-                data = df)
-summary(model1b)
-```
-
-Observed versus predicted.
-```{r}
-df$preATE <- exp(predict(model1))
-cor(df$preATE, df$GroupDayTotalED)
-df$preCas <- exp(predict(model1b)) - 1
-cor(df$preCas, df$GroupDayCas)
-```
-
 Observed versus prediction plot for ATE.
 ```{r}
 library(ggrepel)
 library(viridis)
 
+# .scresid : standardized conditional residuals
 model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
-  filter(abs(.scresid) > 2)
+  filter(abs(.scresid) >= 2)
 
 ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1))) +
-#         geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
-         scale_color_viridis_c(guide = FALSE, direction = -1) +
+         geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
+#         scale_color_viridis_c(guide = FALSE, direction = -1) +
+         scale_color_continuous(guide = FALSE) +
          geom_point() + 
          geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 2) +
          geom_abline(slope = 1) +
@@ -770,6 +773,25 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(G
          scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
   ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Accumulated Tornado Energy [GW]") +
   theme_minimal()
+```
+**Figure 8: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
+
+```{r}
+p1 <- ggplot(model1.df, aes(x = .scresid)) +
+  geom_histogram(binwidth = .5, color = "white", fill = "gray70") +
+  xlab("Standardized Residual") + ylab("Frequency") +
+  ggtitle("A") +
+  theme_minimal()
+
+p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^9, y = .scresid, color = factor(Mo))) +
+         geom_point() +
+         scale_x_log10() +
+         scale_color_discrete(name = "Month") +
+  xlab("Predicted ATE [GW]") + ylab("Standardized Residual") +
+  ggtitle("B") +
+  theme_minimal()
+
+p1 + p2 + plot_layout(ncol = 2, widths = c(2, 3))
 ```
 
 Outliers.
@@ -791,17 +813,5 @@ plt.df <- data.frame(x = plt$eval.points,
 ggplot(plt.df, aes(x = x, y = y)) +
   geom_line() +
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray70", alpha = .3)
-```
-
-Observed versus prediction plot for casualties. NOT USE.
-```{r}
-ggplot(df[df$GroupDayCas > 0, ], aes(x = GroupDayCas, y = preCas)) +
-  scale_color_continuous(guide=FALSE) +
-         geom_point() + geom_smooth(method = lm, color = "red", se = FALSE) +
-         geom_abline(slope = 1) +
-         scale_x_log10(limits = c(1, 1000)) +
-         scale_y_log10(limits = c(1, 1000)) +
-  ylab("Predicted Casualties") + xlab("Observed Casualties") +
-  theme_minimal()
 ```
 
