@@ -298,15 +298,15 @@ df <- Tor.sfdfT %>%
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
          Day = format(cDate, "%d"), 
          ATE = GroupDayTotalED/10^12)                                                                                      
-dim(BigDaysInLargeGroups.sfdfT)
+dim(df)
 ```
 
 There are 177 big days in large groups. These will be used for further analysis and modeling.
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
-sum(BigDaysInLargeGroups.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
-sum(BigDaysInLargeGroups.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
+sum(df$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
+sum(df$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
 ```
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
@@ -316,22 +316,22 @@ TotalBigDays <- Tor.sfdfT %>%
   summarize(nT = n()) %>%
   filter(nT >= 10)
 
-dim(BigDaysInLargeGroups.sfdfT)[1]/dim(TotalBigDays)[1] * 100
+dim(df)[1]/dim(TotalBigDays)[1] * 100
 ```
 25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
-table(table(BigDaysInLargeGroups.sfdfT$groupNumber))
-table(BigDaysInLargeGroups.sfdfT$Year)
-table(BigDaysInLargeGroups.sfdfT$Month)
+table(table(df$groupNumber))
+table(df$Year)
+table(df$Month)
 ```
 
 71% of all big days in large groups occur during April, May, and June.
 
 Top 10 biggest tornado days within the largest groups.
 ```{r}
-BigDaysInLargeGroups.sfdfT %>%
+df %>%
     mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
   top_n(n = 10, nT) %>%
   arrange(desc(nT))
@@ -339,15 +339,15 @@ BigDaysInLargeGroups.sfdfT %>%
 
 Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
 ```{r}
-groupDayCentroids.sfdfT <- st_centroid(BigDaysInLargeGroups.sfdfT)
-groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDaysInLargeGroups.sfdfT))
+groupDayCentroids.sfdfT <- st_centroid(df)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(df))
 groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
 Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
 ```{r}
-May30 <- BigDaysInLargeGroups.sfdfT %>%
+May30 <- df %>%
   filter(cDate == "2004-05-30")
 May30 <- st_convex_hull(May30)
 
@@ -425,29 +425,29 @@ There is no long-term trend in annual average outbreak area. There is no long-te
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
-BigDaysInLargeGroups.sfdfT <- st_convex_hull(BigDaysInLargeGroups.sfdfT)
-BigDaysInLargeGroups.sfdfT$HullArea <- st_area(BigDaysInLargeGroups.sfdfT)
-BigDaysInLargeGroups.sfdfT <- st_transform(BigDaysInLargeGroups.sfdfT, 
+df <- st_convex_hull(df)
+df$HullArea <- st_area(df)
+df <- st_transform(df, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
 Check on a map.
 ```{r}
-tm_shape(BigDaysInLargeGroups.sfdfT) +
+tm_shape(df) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders()
 ```
 
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDaysInLargeGroups.sfdfT`.
+Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `df`.
 ```{r}
 counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(BigDaysInLargeGroups.sfdfT))
+                            crs = st_crs(df))
 ```
 
 Intersect
 ```{r}
-gI <- st_intersects(BigDaysInLargeGroups.sfdfT, counties.sf, sparse = FALSE)
+gI <- st_intersects(df, counties.sf, sparse = FALSE)
 colnames(gI) <- counties.sf$name
 counties.sf$GroupDayCount <- colSums(gI)
 ```
@@ -482,7 +482,7 @@ Number of times each county was within the convex hull of a big tornado day (mor
 
 Year/date plot. Initial code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
-df <- as.data.frame(BigDaysInLargeGroups.sfdfT) %>%
+df <- as.data.frame(df) %>%
   mutate(lTED = log10(GroupDayTotalED),
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
 ggplot(df, aes(y = Year)) +
@@ -496,8 +496,8 @@ ggplot(df, aes(y = Year)) +
 ```
 **Figure 5: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
-```{r}
-BigDaysInLargeGroups.sfdfT %>%
+```{r, eval = FALSE}
+df %>%
   select(cDate, GroupDayTotalED, ATE) %>%
   top_n(n = 10) %>%
   arrange(desc(ATE))
@@ -505,21 +505,35 @@ BigDaysInLargeGroups.sfdfT %>%
 Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
-cor.test(x = BigDaysInLargeGroups.sfdfT$ATE, 
-         y = BigDaysInLargeGroups.sfdfT$nT, 
+cor.test(x = df$ATE, 
+         y = df$nT, 
          method = 'spearman')
 ```
 Spearman's rank correlation between ATE and number of tornadoes is .669
 
+```{r}
+df %>%
+  group_by(Month) %>%
+  summarize(avgATE = mean(ATE),
+            nT = sum(nT),
+            nBD = n())
+
+df %>%
+  group_by(cDate) %>%
+  top_n(n = 10)  %>%
+  summarize(avgATE = mean(ATE))
+```
+
+
 Time series of annual number of big days in large groups and the annual average ATE across those days.
 ```{r}
-BigDaysInLargeGroups.sfdfT %>%
+df %>%
   group_by(Year) %>%
   summarize(nBD = n(),
             avgATE = mean(ATE)) %>%
 ggplot(., aes(x = Year, y = nBD)) +
     geom_point(aes(size = avgATE), color = "gray70", alpha = .5) +
-    scale_size_continuous(name = "ATE [GW]") +
+    scale_size_continuous(name = "ATE [TW]") +
     scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     xlab("") + ylab("Number of Big Days") +
     theme_minimal() 
@@ -530,7 +544,7 @@ Density plot of ATE.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
 
-ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
+ggplot(df, aes(log10(GroupDayTotalED))) +
   geom_histogram(binwidth = .5, color = "white", fill = "gray70") +
   scale_x_continuous(breaks = 10:14, labels= labels) +
   xlab("Accumulated Tornado Energy [GW]") +
@@ -544,7 +558,7 @@ ggplot(BigDaysInLargeGroups.sfdfT, aes(log10(GroupDayTotalED))) +
 Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after September 30, 2014.
 ```{r}
 library(lubridate)
-df <- BigDaysInLargeGroups.sfdfT %>%
+df <- df %>%
   filter(cDate <= as.Date("2014-09-30")) %>%
   mutate(Yr = Year,
          YrMo = paste0(Year, Month),
@@ -778,7 +792,7 @@ model1.df2 <- model1.df %>%
   filter(abs(.scresid) >= 1.7)
 
 ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1))) +
-         geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
+        # geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
          geom_point() + 
@@ -832,25 +846,9 @@ ggplot(plt.df, aes(x = x, y = y)) +
 
 Create a data frame of the over predicted big days. 
 ```{r}
-#overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
-#overpreddays <- BigDaysInLargeGroups.sfdfT %>%
-#  filter(cDate %in% overdays)    **Returning nothing
-
-overpredday1 <- df %>%
-  filter(cDate == "1995-04-19")
-overpredday2 <- df %>%
-  filter(cDate == "1999-01-22")
-overpredday3 <- df%>%
-  filter(cDate == "2000-05-18")
-overpredday4 <- df %>%
-  filter(cDate == "2004-05-24")
-overpredday5 <- df %>%
-  filter(cDate == "2010-10-26")
-overpredday6 <- df %>%
-  filter(cDate == "2011-04-19")
-overpredday7 <- df %>%
-  filter(cDate == "2011-04-28")
-overpred <- rbind(overpredday1,overpredday2,overpredday3,overpredday4,overpredday5,overpredday6,overpredday7)
+dates<- c("1995-04-19", "1999-01-22", "2000-05-18", "2004-05-24", "2010-10-26", "2011-04-19", "2011-04-28")
+overpreddays <- df %>%
+  filter(as.character(cDate) %in% dates)    
 ```
 
 **LOOK AT MAJOR OVER- AND UNDER- PREDICTED BIG DAYS: **
@@ -860,32 +858,19 @@ Create a data frame of the under predicted big days.
 # underpreddays <- df %>%
 #  filter(cDate %in% overdays)    **Returning nothing
 
-underpredday1 <- df %>%
-  filter(cDate == "1999-05-03")
-underpredday2 <- df %>%
-  filter(cDate == "1999-01-21")
-underpredday3 <- df %>%
-  filter(cDate == "2004-05-22")
-underpredday4 <- df %>%
-  filter(cDate == "2008-02-05")
-underpredday5 <- df %>%
-  filter(cDate == "2011-04-27")
-underpred <- rbind(underpredday1,underpredday2,underpredday3,underpredday4,underpredday5)
-```
-
-#order them by date 
-```{r}
-test<- rbind(overpredday2, overpredday3, underpredday1, underpredday2, underpredday3, overpredday4, overpredday1)
+dates <- c("1999-05-03", "1999-01-21", "2004-05-22", "2008-02-05", "2011-04-27")
+underpreddays <- df %>%
+  filter(as.character(cDate) %in% dates) 
 ```
 
 Create the convex hulls for the over and under predicted. 
 ```{r}
-overpred <- st_convex_hull(overpred)
-overpred <- st_transform(overpred, 
+overpred <- st_convex_hull(overpreddays)
+overpred <- st_transform(overpreddays, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 
-underpred <- st_convex_hull(underpred)
-underpred <- st_transform(underpred, 
+underpred <- st_convex_hull(underpreddays)
+underpred <- st_transform(underpreddays, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
@@ -898,7 +883,7 @@ tm_shape(underpred) +
   tm_polygons(col = NA, lwd = 2, alpha = 0.2, border.col = "magenta") + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders() +
-  tm_compass() + tm_scale_bar() 
+  tm_compass(position = c("left", "bottom")) + tm_scale_bar(position = c("left", "bottom")) 
 ```
 
 ```{r}
@@ -908,17 +893,24 @@ overden <- overpred %>%
   mutate(density = nT/HullArea)
 
 u <- underden$density *10**10
+mean(u)
 o <- overden$density *10**10
-
-mean(underden$HullArea /10**10)
-#39.01043 [m^2]
-mean(overden$HullArea /10**10)
-#30.04258 [m^2]
+mean(o)
 
 t.test(u,o)
 ```
 
+```{r}
+mean(underden$HullArea /10**10)
+#39.01043 [m^2]
+mean(overden$HullArea /10**10)
+#30.04258 [m^2]
+```
 
+#order them by date 
+```{r}
+test<- rbind(overpredday2, overpredday3, underpredday1, underpredday2, underpredday3, overpredday4, overpredday1)
+```
 
 ```{r}
 overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
