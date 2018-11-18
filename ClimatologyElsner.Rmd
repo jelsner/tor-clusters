@@ -283,7 +283,7 @@ ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) +
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
-BigDaysInLargeGroups.sfdfT <- Tor.sfdfT %>%
+df <- Tor.sfdfT %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n(),
@@ -624,7 +624,7 @@ df$mBS <- mBS
 Save `df` so we can work on the models below without needing to run all the code above.
 ```{r}
 save(df, file = "df.RData")
-#load("df.RData")
+load("df.RData")
 dim(df)
 ```
 
@@ -668,6 +668,21 @@ df$mVSTM2 <- df$mVSTM/10
 
 ```{r}
 library(lme4)
+m1 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo),
+             weights = nT, 
+             data = df)
+summary(m1)
+
+m2 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mCAPE2,
+             weights = nT, 
+             data = df)
+summary(m2)
+
+m3 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mBS2,
+             weights = nT, 
+             data = df)
+summary(m3)
+
 model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
                   mCAPE2 + mBS2,
              weights = nT, 
@@ -760,7 +775,7 @@ library(viridis)
 # .scresid : standardized conditional residuals
 model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
-  filter(abs(.scresid) >= 2)
+  filter(abs(.scresid) >= 1.7)
 
 ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1))) +
          geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
@@ -821,31 +836,41 @@ Create a data frame of the over predicted big days.
 #overpreddays <- BigDaysInLargeGroups.sfdfT %>%
 #  filter(cDate %in% overdays)    **Returning nothing
 
-overpredday1 <- BigDaysInLargeGroups.sfdfT %>%
-  filter(cDate == "2014-02-20")
-overpredday2 <- BigDaysInLargeGroups.sfdfT %>%
+overpredday1 <- df %>%
   filter(cDate == "1995-04-19")
-overpredday3 <- BigDaysInLargeGroups.sfdfT%>%
+overpredday2 <- df %>%
+  filter(cDate == "1999-01-22")
+overpredday3 <- df%>%
   filter(cDate == "2000-05-18")
-overpredday4 <- BigDaysInLargeGroups.sfdfT %>%
+overpredday4 <- df %>%
+  filter(cDate == "2004-05-24")
+overpredday5 <- df %>%
+  filter(cDate == "2010-10-26")
+overpredday6 <- df %>%
+  filter(cDate == "2011-04-19")
+overpredday7 <- df %>%
   filter(cDate == "2011-04-28")
-overpred <- rbind(overpredday1,overpredday2,overpredday3,overpredday4)
+overpred <- rbind(overpredday1,overpredday2,overpredday3,overpredday4,overpredday5,overpredday6,overpredday7)
 ```
 
 **LOOK AT MAJOR OVER- AND UNDER- PREDICTED BIG DAYS: **
 Create a data frame of the under predicted big days. 
 ```{r}
 # underdays <- c("2003-05-04", "2008-02-05", "2011-04-27") 
-# underpreddays <- BigDaysInLargeGroups.sfdfT %>%
+# underpreddays <- df %>%
 #  filter(cDate %in% overdays)    **Returning nothing
 
-underpredday1 <- BigDaysInLargeGroups.sfdfT %>%
-  filter(cDate == "2003-05-04")
-underpredday2 <- BigDaysInLargeGroups.sfdfT %>%
+underpredday1 <- df %>%
+  filter(cDate == "1999-05-03")
+underpredday2 <- df %>%
+  filter(cDate == "1999-01-21")
+underpredday3 <- df %>%
+  filter(cDate == "2004-05-22")
+underpredday4 <- df %>%
   filter(cDate == "2008-02-05")
-underpredday3 <- BigDaysInLargeGroups.sfdfT %>%
+underpredday5 <- df %>%
   filter(cDate == "2011-04-27")
-underpred <- rbind(underpredday1,underpredday2,underpredday3)
+underpred <- rbind(underpredday1,underpredday2,underpredday3,underpredday4,underpredday5)
 ```
 
 #order them by date 
@@ -875,6 +900,25 @@ tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) +
   tm_borders() +
   tm_compass() + tm_scale_bar() 
 ```
+
+```{r}
+underden <- underpred %>%
+  mutate(density = nT/HullArea)
+overden <- overpred %>%
+  mutate(density = nT/HullArea)
+
+u <- underden$density *10**10
+o <- overden$density *10**10
+
+mean(underden$HullArea /10**10)
+#39.01043 [m^2]
+mean(overden$HullArea /10**10)
+#30.04258 [m^2]
+
+t.test(u,o)
+```
+
+
 
 ```{r}
 overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
@@ -911,7 +955,7 @@ tm_shape(stateBorders) +
   tm_shape(dat) +
   tm_facets(by = "cDate", ncol = 3)  +
   tm_symbols(col = "mag", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
-  tm_layout(panel.labels = paste(test$cDate, test$work), panel.label.size = 1, panel.label.bg.color = "grey90") 
+  tm_layout(panel.labels = paste(test$cDate, test$work, test$nT), panel.label.size = 0.9, panel.label.bg.color = "grey90") 
 ```
 
 It over predicts when there are less tornadoes. Under predicts when there are more. 
