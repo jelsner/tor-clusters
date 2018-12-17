@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -147,7 +147,8 @@ Groups.sfdfT <- Tor.sfdfT %>%
             nD = n_distinct(date),
             StartTime = first(DateTime),
             EndTime = last(DateTime),
-            Duration = difftime(EndTime, StartTime, units = "secs")) %>%
+            Duration = difftime(EndTime, StartTime, units = "secs"), 
+            cas = sum(inj + fat)) %>%
   filter(nT >= 30)
 dim(Groups.sfdfT)
 ```
@@ -266,11 +267,12 @@ FPFN
 Graph of the percent match values between ours and the Forbes 2004. 
 ```{r}
 ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
-  geom_line() +
-  geom_point() +
+  geom_line(size = 1.5) +
+  geom_point(size = 2) +
   labs(x = "Space - Time Distance", 
        y = "Percent") +
   theme_minimal() +
+  theme(text = element_text(size=25)) +
 #    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
 #  theme(plot.title = element_text(hjust = 0.5)) +
    
@@ -279,7 +281,7 @@ ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) +
   #                                      by = 15000), 1)) + 
   ylim(0,100)
 ```
-
+** Figure 1: Percent agreement between our tornado groups and the tornado outbreaks identified in Forbes (2004). ** 
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
@@ -333,7 +335,7 @@ Top 10 biggest tornado days within the largest groups.
 ```{r}
 df %>%
     mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
-  top_n(n = 10, nT) %>%
+  top_n(n = 20, nT) %>%
   arrange(desc(nT))
 ```
 
@@ -363,38 +365,60 @@ Make a map of the May 30 tornado day. Obtain the state and county boundaries fro
 states.sf <- us_states()
 counties.sf <- us_counties()
 
+tm_shape(May30) +
+  tm_borders(col = "red", lwd = 3) +
 tm_shape(stateBorders) + 
-  tm_borders(col = "darkgray", alpha = 1) +
-  tm_compass() + tm_scale_bar() +
+  tm_borders(col = "gray15", alpha = 1) +
+  tm_scale_bar(width = 0.5, size = 1.25, lwd = 2) +
+  tm_compass(size = 5) + 
   tm_layout(legend.bg.color = "white", legend.text.size = .75) +
 tm_shape(counties.sf) +
-  tm_borders(col = "gray", alpha = .3) +
+  tm_borders(col = "gray40", alpha = .3) +
+  tm_scale_bar(width = 8, size = 8) +
+  tm_format("World", legend.position = c("right", "top"),
+                   attr.position = c("right", "top"),
+                   legend.frame = FALSE,
+                   #title = "May 30th Tornado Group",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.2, .2, .2, .2)) +
+tm_shape(May30tornadoes) +
+  tm_symbols(size = .75, col = "black") +
+tm_shape(May30centroid) +
+  tm_symbols(size = 1, col = "red", shape = 24) 
+```
+** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location, and the triangle is the geographic center of the genesis location. The dark gray line defines the minimum convex polygon around the genesis locations (convex hull). **
+
+Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
+```{r}
+x <- st_convex_hull(groupDayCentroids.sfdfT)
+
+tm_shape(x) +
+  tm_symbols(alpha = 0, border.alpha = 0) +
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray15", alpha = 1) +
+  tm_compass(size = 5) + tm_scale_bar(width = 0.6, size = 1.5) +
+tm_shape(counties.sf) +
+  tm_borders(col = "gray40", alpha = .3) +
   tm_compass() + 
-  tm_scale_bar() +
+  tm_scale_bar(width = 8, size = 8) +
   tm_format("World", legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
                    #title = "May 30th Tornado Group",
                    #title.size = 1.3,
                    #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05)) +
-tm_shape(May30) +
-  tm_borders(col = "red") +
-tm_shape(May30tornadoes) +
-  tm_symbols(size = .25, col = "black") +
-tm_shape(May30centroid) +
-  tm_symbols(size = .5, col = "red", shape = 24) 
-```
-
-Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
-```{r}
+                   inner.margins = c(.15, .05, .075, .05)) +
 tm_shape(groupDayCentroids.sfdfT) +
-  tm_symbols(size = "nT", title.size = "Count", legend.size.is.portrait = TRUE) + 
-tm_shape(stateBorders) + 
-  tm_borders() +
-  tm_compass() + tm_scale_bar() +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75)
+  tm_symbols(size = "nT", col = "red", title.size = "Count", legend.size.is.portrait = TRUE, shape =24, scale = 1.5) + 
+  tm_layout(legend.hist.width = 1, legend.hist.height =8, 
+  legend.title.size=1.75,
+  legend.text.size = 1.75,
+  legend.position = c("right","bottom"),
+  legend.bg.color = "white",
+  legend.bg.alpha =1) 
 ```
+** Figure 3: Centroids of genesis locations occurring on big days in large groups. The triangles are sized by the number of tornadoes on that day. **
 
 Time series graphs
 ```{r}
@@ -460,23 +484,34 @@ states.sf <- states.sf %>%
 
 Create a map of the outbreak density in each county in the United States. Fill by the `GroupDayCount` column. 
 ```{r}
-tm_shape(states.sf, projection = "laea_NA") +
-  tm_borders() +
+counties.sf <- st_transform(counties.sf, 
+                            crs = st_crs(stateBorders))
+df <- st_transform(df, 
+                            crs = st_crs(stateBorders))
+
+tm_shape(df) +
+  tm_polygons(alpha = 0, border.alpha = 0) +
 tm_shape(counties.sf) +
    tm_fill("GroupDayCount",
             title = "Count",
             palette = "Reds", n = 5) +
   tm_borders(col = "gray", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar() +
+  tm_compass(size = 5) + tm_scale_bar(width = 0.6, size = 1.4) +
   tm_layout(legend.position = c("right", "bottom"),
                    attr.position = c("left", "bottom"),
                    legend.frame = FALSE,
                    #title = "Tornado Group Days by County [1994-2017]",
                    #title.size = 1.3,
                    #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .05, .1, .05))
+                   inner.margins = c(.05, .0, .0, 0),legend.hist.width = 1, legend.hist.height =4, 
+  legend.title.size=1.5,
+  legend.text.size = 1.25,
+  legend.bg.color = "white",
+  legend.bg.alpha =1) +
+tm_shape(stateBorders, is.master = FALSE) +
+  tm_borders() 
 ```
+** Figure 4: Big day density by county **
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
 
@@ -486,13 +521,22 @@ df <- as.data.frame(df) %>%
   mutate(lTED = log10(GroupDayTotalED),
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
 ggplot(df, aes(y = Year)) +
-  geom_hline(yintercept = seq(1994, 2017, by = 1), color = "gray", size = .05) +
-  scale_size(range = c(1, 5), name = "Accumulated\nTornado\nEnergy (ATE)\n[GW]", labels = c("10", "100", "1000", "10,000", "100,000"), breaks = c(10, 11, 12, 13, 14)) +
-  scale_x_date(date_breaks = "months", date_labels = "%b") +
-  scale_y_reverse(limits = c(2017, 1994), breaks = c(2014, 2009, 2004, 1999, 1994)) +
-  xlab("") +  ylab("") +
-  geom_point(aes(size = lTED, x = plot_date), color = "gray", alpha = .5) +
-  theme_minimal()
+  geom_hline(yintercept = seq(1994, 2017, by = 1), 
+             color = "gray30", 
+             size = .05) +
+  scale_size(range = c(5, 9), 
+             name = " ATE [GW]", 
+             labels = c("10", "100", "1000", "10,000", "100,000"), 
+             breaks = c(10, 11, 12, 13, 14)) +
+  scale_x_date(date_breaks = "months", 
+               date_labels = "%b") +
+  scale_y_reverse(limits = c(2017, 1994), 
+                  breaks = c(2014, 2009, 2004, 1999, 1994)) +
+  xlab("Day of the Year") +  ylab("Year") +
+  geom_point(aes(size = lTED, x = plot_date),  alpha = .5) +
+  theme_minimal() +
+  theme(text = element_text(size=30), legend.position = "bottom", legend.background = element_rect(size=0.5, linetype="solid", 
+                                  colour ="gray10"))
 ```
 **Figure 5: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
@@ -518,12 +562,14 @@ df %>%
             nT = sum(nT),
             nBD = n())
 
-df %>%
-  group_by(cDate) %>%
-  top_n(n = 10)  %>%
-  summarize(avgATE = mean(ATE))
-```
+Groups.sfdfT %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
 
+df %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
+```
 
 Time series of annual number of big days in large groups and the annual average ATE across those days.
 ```{r}
@@ -532,11 +578,14 @@ df %>%
   summarize(nBD = n(),
             avgATE = mean(ATE)) %>%
 ggplot(., aes(x = Year, y = nBD)) +
-    geom_point(aes(size = avgATE), color = "gray70", alpha = .5) +
+    geom_point(aes(size = avgATE), color = "gray10", alpha = .7) +
     scale_size_continuous(name = "ATE [TW]") +
     scale_x_continuous(breaks = seq(1995, 2015, 5)) +
-    xlab("") + ylab("Number of Big Days") +
-    theme_minimal() 
+    xlab("Year") + ylab("Number of Big Days") +
+    theme_minimal() +
+  theme(text = element_text(size=20)) +
+  theme(legend.position="bottom", legend.background = element_rect(size=0.5, linetype="solid", 
+                                  colour ="gray10"))
 ```
 **Figure 6: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
 
@@ -545,11 +594,12 @@ Density plot of ATE.
 labels <- c("10", "100", "1000","10000", "100000")
 
 ggplot(df, aes(log10(GroupDayTotalED))) +
-  geom_histogram(binwidth = .5, color = "white", fill = "gray70") +
+  geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
   scale_x_continuous(breaks = 10:14, labels= labels) +
   xlab("Accumulated Tornado Energy [GW]") +
   ylab("Frequency") +
-  theme_minimal()
+  theme_minimal() +
+  theme(text = element_text(size=20))
 ```
 **Figure 7: Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
 
@@ -637,7 +687,7 @@ df$mBS <- mBS
 
 Save `df` so we can work on the models below without needing to run all the code above.
 ```{r}
-save(df, file = "df.RData")
+#save(df, file = "df.RData")
 load("df.RData")
 dim(df)
 ```
@@ -795,33 +845,36 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(G
         # geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
-         geom_point() + 
-         geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 2) +
-         geom_abline(slope = 1) +
+         geom_point(size = 5) + 
+         geom_abline(slope = 1, size = 1.25) +
+         #geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
          scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
          scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
-  ylab("Predicted Accumulated Tornado Energy [GW]") + xlab("Accumulated Tornado Energy [GW]") +
-  theme_minimal()
+  ylab("Predicted ATE [GW]") + xlab("ATE [GW]") +
+  theme_minimal() + theme(text = element_text(size=30))
 ```
-**Figure 8: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
+**Figure 9: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
-  geom_histogram(binwidth = .5, color = "white", fill = "gray70") +
+  geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
   xlab("Standardized Residual") + ylab("Frequency") +
   ggtitle("A") +
-  theme_minimal()
+  theme_minimal() + theme(text = element_text(size=25))
 
 p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^9, y = .scresid, color = factor(Mo))) +
-         geom_point() +
+         geom_point(size = 5) +
          scale_x_log10() +
          scale_color_discrete(name = "Month") +
   xlab("Predicted ATE [GW]") + ylab("Standardized Residual") +
   ggtitle("B") +
-  theme_minimal()
+  theme_minimal() + theme(text = element_text(size=26))
+library(gridExtra)
+grid.arrange(p1, p2, ncol = 1, widths = 2)
 
-p1 + p2 + plot_layout(ncol = 2, widths = c(2, 3))
+#p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
 ```
+**Figure 8: Conditional standardized residuals fromt the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE.**
 
 Outliers.
 ```{r}
@@ -876,15 +929,29 @@ underpred <- st_transform(underpreddays,
 
 Map the over vs under predicted big days. Color blue and magenta. 
 ```{r}
+stateBorders <- st_transform(stateBorders, 
+                            crs = st_crs(counties.sf))
+overpred <- st_transform(overpred, crs = st_crs(stateBorders))
+underpred <- st_transform(underpred, crs = st_crs(stateBorders))
+
 tm_shape(overpred) +
-  tm_polygons(col = NA, lwd = 2, alpha = 0.2, border.col = "blue") + 
+  tm_polygons(alpha = 0, alpha.border = 0) +
+tm_shape(underpred) +
+  tm_polygons(alpha = 0, alpha.border = 0) + 
+tm_shape(stateBorders, is.master = FALSE) + 
+  tm_borders(col = "black") +
+  tm_compass(position = c("right", "bottom"), size = 5) + 
+  tm_scale_bar(position = c("left", "bottom"), width = 0.5, size = 1.5) +
+  tm_layout(inner.margins = c(.2, .1, .1, .1)) +
+tm_shape(counties.sf) +
+  tm_borders(col = "gray50", alpha = .3) +
+tm_shape(overpred) +
+  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "blue") + 
   tm_fill(col = "blue") +
 tm_shape(underpred) +
-  tm_polygons(col = NA, lwd = 2, alpha = 0.2, border.col = "magenta") + 
-tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
-  tm_borders() +
-  tm_compass(position = c("left", "bottom")) + tm_scale_bar(position = c("left", "bottom")) 
+  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "magenta") 
 ```
+**Figure 10: Areas defininng the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATE. **
 
 ```{r}
 underden <- underpred %>%
