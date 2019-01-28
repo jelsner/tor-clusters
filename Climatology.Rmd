@@ -199,15 +199,15 @@ Groups.sfdfT %>%
 
 Map the locations (start points) of the top 25 tornado groups by energy dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
 ```{r}
-df <- as.data.frame(Groups.sfdfT) %>%
+BigDays.sfdfT <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 25, wt = GroupTotalED) %>%
   arrange(GroupTotalED)
 
 sfdf <- Tor.sfdfT %>%
-   filter(groupNumber %in% df$groupNumber) %>%
+   filter(groupNumber %in% BigDays.sfdfT$groupNumber) %>%
    mutate(EF = factor(mag))
 
-sfdf2 <- left_join(sfdf, df, by = "groupNumber") %>%
+sfdf2 <- left_join(sfdf, BigDays.sfdfT, by = "groupNumber") %>%
   arrange(GroupTotalED, EF)
 ```
 
@@ -222,7 +222,7 @@ tm_shape(stateBorders) +
   tm_shape(sfdf2) +
   tm_facets(by = "GroupTotalED", ncol = 5)  +
   tm_symbols(col = "EF", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
-  tm_layout(panel.labels = paste(df$Name2, df$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
+  tm_layout(panel.labels = paste(BigDays.sfdfT$Name2, BigDays.sfdfT$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
 ```
 
 Distribution of the number of days each group lasts.
@@ -285,7 +285,7 @@ ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) +
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
-df <- Tor.sfdfT %>%
+BigDays.sfdfT <- Tor.sfdfT %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n(),
@@ -293,23 +293,213 @@ df <- Tor.sfdfT %>%
             GroupDayMaxED = max(ED),
             GroupDayMeanED = mean(ED),
             GroupDayCas = sum(cas),
-            GroupDayFat = sum(fat)) %>%
+            GroupDayFat = sum(fat),
+            StartTime = first(DateTime),
+            EndTime = last(DateTime)) %>%
   filter(nT >= 10) %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
          Day = format(cDate, "%d"), 
          ATE = GroupDayTotalED/10^12)                                                                                      
-dim(df)
+dim(BigDays.sfdfT)
 ```
 
 There are 177 big days in large groups. These will be used for further analysis and modeling.
 
+Convert `StartTime` and `EndTime` to UTC.
+```{r}
+attr(BigDays.sfdfT$StartTime, "tzone") <- "UTC"
+attr(BigDays.sfdfT$EndTime, "tzone") <- "UTC"
+```
+
+Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the **xts** package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day. 
+```{r}
+library(xts)
+BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime, n = (60 * 60 * 3)) - 3600 * 3)
+```
+
+Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs. DON'T USE!
+```{r}
+NARRday = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%Y/%m/%d")
+NARRZtime = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%H")
+
+BigDays.sfdfT <- cbind(BigDays.sfdfT, NARRday, NARRZtime)
+```
+
+Create a table to show how many big days fall in each start Z time. 
+```{r}
+BigDays.sfdfT %>%
+  group_by(NARRZtime) %>%
+  summarize(count = n())
+```
+
+Create a downloadable string of information for the varying NARR times. DON'T USE
+```{r}
+BigDays.sfdfT <- BigDays.sfdfT %>%
+  mutate(YrMoDa = gsub("/", "", NARRday),
+         slug = paste0("merged_AWIP32.",YrMoDa, NARRZtime),
+         slug2 = paste0("merged_AWIP32.",YrMoDa))
+```
+
+Extract a vector of the big days. Save as a .csv for NARR download. 
+```{r}
+bigdays <- BigDays.sfdfT$NARRday
+bigdaytimes <- BigDays.sfdfT$NARRZtime
+x <- cbind(as.character(bigdays), as.character(bigdaytimes))
+write.csv(x, "BigDays.csv")
+```
+
+```{r}
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+```{r}
+BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
+BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+Get the centroid (central point of the tornado activity) for each big day. 
+```{r}
+BigDayCentroids.df <- st_centroid(BigDays.sfdfT)
+BigDayCentroids.df$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
+BigDayCentroids.df$groupDensity <- BigDayCentroids.df$nT/BigDayCentroids.df$groupArea
+```
+
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
-sum(df$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
-sum(df$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
+sum(BigDays.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
+sum(BigDays.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
 ```
+
+################################
+## Part 2: Environmental data ##
+################################
+## NARR data: 
+Data is downloaded from NCAR's North American Regional Reanalysis (https://rda.ucar.edu/datasets/ds608.0/#!access). It extends from 1-1-1979 to 11-1-2018. Use the NCAR NARR 3-hourly files.  
+
+Spatial Extent: 
+Longitude Range: Westernmost = 148.64E Easternmost = 2.568W
+Latitude Range: Southernmost = 0.897N Northernmost = 85.333N 
+
+
+```{r}
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+The list of all variables can be found here: http://www.emc.ncep.noaa.gov/mmb/rreanl/merged_land_AWIP32.pdf 
+
+```{r}
+slug <- BigDays.sfdfT$slug
+slug2 <- BigDays.sfdfT$slug2
+```
+
+
+Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.
+```{r}
+avgCAPE <- numeric()
+avgHLCY <- numeric()
+avgCIN <- numeric()
+avgUSTM <- numeric()
+avgVSTM <- numeric()
+avgBS <- numeric()
+avgSM <- numeric()
+avgRATIO <- numeric()
+maxCAPE <- numeric()
+maxHLCY <- numeric()
+minCIN <- numeric()
+maxUSTM <- numeric()
+maxVSTM <- numeric()
+maxBS <- numeric()
+maxSM <- numeric()
+ 
+library(raster)
+for(i in 1:length(slug)){
+  print(i)
+  rb <- brick(paste0("/Volumes/My Passport for Mac/NCARNARR/All/", BigDays.sfdfT$slug2[i], "/",BigDays.sfdfT$slug[i])) #<-- this is for varying NARR times
+  CAPE <- raster(rb, layer = 375)
+  HLCY <- raster(rb, layer = 323)
+  CIN <- raster(rb, layer = 376)
+  USTM <- raster(rb, layer = 324)
+  VSTM <- raster(rb, layer = 325)
+  UGRD500 <- raster(rb, layer = 117) 
+  VGRD500 <- raster(rb, layer = 118) 
+  UGRDsfc <- raster(rb, layer = 293) 
+  VGRDsfc <- raster(rb, layer = 294)     
+  SM <- sqrt(USTM^2 + VSTM^2)
+  RATIO <- CAPE/abs(CIN)
+  BS <- sqrt(((UGRD500 - UGRDsfc)**2) + ((VGRD500 - VGRDsfc)**2))
+  avgCAPE <- c(avgCAPE, as.numeric(raster::extract(CAPE, BigDays.sfdfT[i, ], fun = mean)))
+  avgHLCY <- c(avgHLCY, as.numeric(raster::extract(HLCY, BigDays.sfdfT[i, ], fun = mean)))
+  avgCIN <- c(avgCIN, as.numeric(raster::extract(CIN, BigDays.sfdfT[i, ], fun = mean)))
+  avgUSTM <- c(avgUSTM, as.numeric(raster::extract(USTM, BigDays.sfdfT[i, ], fun = mean)))
+  avgVSTM <- c(avgVSTM, as.numeric(raster::extract(VSTM, BigDays.sfdfT[i, ], fun = mean)))
+  avgSM <- c(avgSM, as.numeric(raster::extract(SM, BigDays.sfdfT[i, ], fun = mean)))
+  avgRATIO <- c(avgRATIO, as.numeric(raster::extract(RATIO, BigDays.sfdfT[i, ], fun = mean)))
+  avgBS <- c(avgBS, as.numeric(raster::extract(BS, BigDays.sfdfT[i, ], fun = mean)))
+  maxCAPE <- c(maxCAPE, as.numeric(raster::extract(CAPE, BigDays.sfdfT[i, ], fun = max)))
+  maxHLCY <- c(maxHLCY, as.numeric(raster::extract(HLCY, BigDays.sfdfT[i, ], fun = max)))
+  minCIN <- c(minCIN, as.numeric(raster::extract(CIN, BigDays.sfdfT[i, ], fun = min)))
+  maxUSTM <- c(maxUSTM, as.numeric(raster::extract(USTM, BigDays.sfdfT[i, ], fun = max)))
+  maxVSTM <- c(maxVSTM, as.numeric(raster::extract(VSTM, BigDays.sfdfT[i, ], fun = max)))
+  maxSM <- c(maxSM, as.numeric(raster::extract(SM, BigDays.sfdfT[i, ], fun = max)))
+  maxBS <- c(maxBS, as.numeric(raster::extract(BS, BigDays.sfdfT[i, ], fun = max)))
+}
+```
+
+Add environmental data values to the group day means data frame.
+```{r}
+BigDays.sfdfT$avgCAPE <- avgCAPE
+BigDays.sfdfT$avgHLCY <- avgHLCY
+BigDays.sfdfT$avgCIN <- avgCIN
+BigDays.sfdfT$avgUSTM <- avgUSTM
+BigDays.sfdfT$avgVSTM <- avgVSTM
+BigDays.sfdfT$avgBS <- avgBS
+BigDays.sfdfT$avgRATIO <- avgRATIO
+BigDays.sfdfT$avgSM <- avgSM
+BigDays.sfdfT$maxCAPE <- maxCAPE
+BigDays.sfdfT$maxHLCY <- maxHLCY
+BigDays.sfdfT$minCIN <- minCIN
+BigDays.sfdfT$maxUSTM <- maxUSTM
+BigDays.sfdfT$maxVSTM <- maxVSTM
+BigDays.sfdfT$maxBS <- maxBS
+BigDays.sfdfT$maxSM <- maxSM
+```
+
+Scale the variables to make them easier to read and input for models. 
+```{r}
+BigDays.sfdfT$avgCAPE2 <- BigDays.sfdfT$avgCAPE/1000
+BigDays.sfdfT$avgHLCY2 <- BigDays.sfdfT$avgHLCY/100
+BigDays.sfdfT$avgCIN2 <- BigDays.sfdfT$avgCIN/100
+BigDays.sfdfT$avgBS2 <- BigDays.sfdfT$avgBS/10
+BigDays.sfdfT$avgUSTM2 <- BigDays.sfdfT$avgUSTM/10
+BigDays.sfdfT$avgVSTM2 <- BigDays.sfdfT$avgVSTM/10
+BigDays.sfdfT$avgSM2 <- BigDays.sfdfT$avgSM/10
+
+BigDays.sfdfT$maxCAPE2 <- BigDays.sfdfT$maxCAPE/1000
+BigDays.sfdfT$maxHLCY2 <- BigDays.sfdfT$maxHLCY/100
+BigDays.sfdfT$minCIN2 <- BigDays.sfdfT$minCIN/100
+BigDays.sfdfT$maxBS2 <- BigDays.sfdfT$maxBS/10
+BigDays.sfdfT$maxUSTM2 <- BigDays.sfdfT$maxUSTM/10
+BigDays.sfdfT$maxVSTM2 <- BigDays.sfdfT$maxVSTM/10
+BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
+```
+
+Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
+```{r}
+#save(BigDays.sfdfT, Groups.sfdfT, Tor.sfdfT, file = "BigDays.RData")
+load("BigDays.RData")
+dim(BigDays.sfdfT)
+```
+
+##################
+# Stats and Maps #
+##################
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
 ```{r}
@@ -318,22 +508,22 @@ TotalBigDays <- Tor.sfdfT %>%
   summarize(nT = n()) %>%
   filter(nT >= 10)
 
-dim(df)[1]/dim(TotalBigDays)[1] * 100
+dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
 25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
-table(table(df$groupNumber))
-table(df$Year)
-table(df$Month)
+table(table(BigDays.sfdfT$groupNumber))
+table(BigDays.sfdfT$Year)
+table(BigDays.sfdfT$Month)
 ```
 
 71% of all big days in large groups occur during April, May, and June.
 
 Top 10 biggest tornado days within the largest groups.
 ```{r}
-df %>%
+BigDays.sfdfT %>%
     mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
   top_n(n = 20, nT) %>%
   arrange(desc(nT))
@@ -341,15 +531,15 @@ df %>%
 
 Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
 ```{r}
-groupDayCentroids.sfdfT <- st_centroid(df)
-groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(df))
+groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
 groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
 Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
 ```{r}
-May30 <- df %>%
+May30 <- BigDays.sfdfT %>%
   filter(cDate == "2004-05-30")
 May30 <- st_convex_hull(May30)
 
@@ -387,7 +577,7 @@ tm_shape(May30tornadoes) +
 tm_shape(May30centroid) +
   tm_symbols(size = 1, col = "red", shape = 24) 
 ```
-** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location, and the triangle is the geographic center of the genesis location. The dark gray line defines the minimum convex polygon around the genesis locations (convex hull). **
+** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location, and the triangle is the geographic center of the genesis location. The red line defines the minimum convex polygon around the genesis locations (convex hull). **
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
@@ -449,29 +639,29 @@ There is no long-term trend in annual average outbreak area. There is no long-te
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r}
-df <- st_convex_hull(df)
-df$HullArea <- st_area(df)
-df <- st_transform(df, 
+BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
+BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
 Check on a map.
 ```{r}
-tm_shape(df) +
+tm_shape(BigDays.sfdfT) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders()
 ```
 
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `df`.
+Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
 ```{r}
 counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(df))
+                            crs = st_crs(BigDays.sfdfT))
 ```
 
 Intersect
 ```{r}
-gI <- st_intersects(df, counties.sf, sparse = FALSE)
+gI <- st_intersects(BigDays.sfdfT, counties.sf, sparse = FALSE)
 colnames(gI) <- counties.sf$name
 counties.sf$GroupDayCount <- colSums(gI)
 ```
@@ -486,10 +676,10 @@ Create a map of the outbreak density in each county in the United States. Fill b
 ```{r}
 counties.sf <- st_transform(counties.sf, 
                             crs = st_crs(stateBorders))
-df <- st_transform(df, 
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
                             crs = st_crs(stateBorders))
 
-tm_shape(df) +
+tm_shape(BigDays.sfdfT) +
   tm_polygons(alpha = 0, border.alpha = 0) +
 tm_shape(counties.sf) +
    tm_fill("GroupDayCount",
@@ -517,10 +707,10 @@ Number of times each county was within the convex hull of a big tornado day (mor
 
 Year/date plot. Initial code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
-df <- as.data.frame(df) %>%
+BigDays.sfdfT <- as.data.frame(BigDays.sfdfT) %>%
   mutate(lTED = log10(GroupDayTotalED),
          plot_date = as.Date(format(cDate, "2012-%m-%d")))
-ggplot(df, aes(y = Year)) +
+ggplot(BigDays.sfdfT, aes(y = Year)) +
   geom_hline(yintercept = seq(1994, 2017, by = 1), 
              color = "gray30", 
              size = .05) +
@@ -541,7 +731,7 @@ ggplot(df, aes(y = Year)) +
 **Figure 5: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
 ```{r, eval = FALSE}
-df %>%
+BigDays.sfdfT %>%
   select(cDate, GroupDayTotalED, ATE) %>%
   top_n(n = 10) %>%
   arrange(desc(ATE))
@@ -549,14 +739,14 @@ df %>%
 Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
-cor.test(x = df$ATE, 
-         y = df$nT, 
+cor.test(x = BigDays.sfdfT$ATE, 
+         y = BigDays.sfdfT$nT, 
          method = 'spearman')
 ```
 Spearman's rank correlation between ATE and number of tornadoes is .669
 
 ```{r}
-df %>%
+BigDays.sfdfT %>%
   group_by(Month) %>%
   summarize(avgATE = mean(ATE),
             nT = sum(nT),
@@ -566,14 +756,14 @@ Groups.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 
-df %>%
+BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
 
 Time series of annual number of big days in large groups and the annual average ATE across those days.
 ```{r}
-df %>%
+BigDays.sfdfT %>%
   group_by(Year) %>%
   summarize(nBD = n(),
             avgATE = mean(ATE)) %>%
@@ -593,7 +783,7 @@ Density plot of ATE.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
 
-ggplot(df, aes(log10(GroupDayTotalED))) +
+ggplot(BigDays.sfdfT, aes(log10(GroupDayTotalED))) +
   geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
   scale_x_continuous(breaks = 10:14, labels= labels) +
   xlab("Accumulated Tornado Energy [GW]") +
@@ -603,100 +793,15 @@ ggplot(df, aes(log10(GroupDayTotalED))) +
 ```
 **Figure 7: Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
 
-## Part 2: Environmental data
-
-Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after September 30, 2014.
-```{r}
-library(lubridate)
-df <- df %>%
-  filter(cDate <= as.Date("2014-09-30")) %>%
-  mutate(Yr = Year,
-         YrMo = paste0(Year, Month),
-         YrMoDa = paste0(YrMo, Day),
-         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_1800_000.grb"),
-         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2)) 
-slug <- df$slug
-```
-
-Download the grib files. ~40 minutes to download 154 grb files from home.
-```{r, eval=FALSE}
-for(i in 1:length(slug)){
-    download.file(slug[i], paste0("Archive/NARRdata", i, ".grb"), mode = "wb")
-    }
-```
-
-Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls. https://nomads.ncdc.noaa.gov/data/narr/201104/20110427/narr-a_221_20110427_0000_000.inv
-```{r}
-library(raster)
-aCAPE <- numeric()
-aHLCY <- numeric()
-aCIN <- numeric()
-aUSTM <- numeric()
-aVSTM <- numeric()
-aBS <- numeric()
-aRATIO <- numeric()
-mCAPE <- numeric()
-mHLCY <- numeric()
-mCIN <- numeric()
-mUSTM <- numeric()
-mVSTM <- numeric()
-mBS <- numeric()
-
-for(i in 1:length(slug)){
-  print(i)
-  rb <- brick(paste0("Archive/NARRdata", i, ".grb"))
-  CAPE.rl <- raster(rb, layer = 375)
-  HLCY.rl <- raster(rb, layer = 323)
-  CIN.rl <- raster(rb, layer = 376)
-  USTM.rl <- raster(rb, layer = 324)
-  VSTM.rl <- raster(rb, layer = 325)
-  BS.rl <- sqrt(USTM.rl^2 + VSTM.rl^2)
-  RATIO.rl <- CAPE.rl/abs(CIN.rl)
-  aCAPE <- c(aCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = mean)))
-  aHLCY <- c(aHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = mean)))
-  aCIN <- c(aCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = mean)))
-  aUSTM <- c(aUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = mean)))
-  aVSTM <- c(aVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = mean)))
-  aBS <- c(aBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = mean)))
-  aRATIO <- c(aRATIO, as.numeric(raster::extract(RATIO.rl, df[i, ], fun = mean)))
-  mCAPE <- c(mCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = max)))
-  mHLCY <- c(mHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = max)))
-  mCIN <- c(mCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = min)))
-  mUSTM <- c(mUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = max)))
-  mVSTM <- c(mVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = max)))
-  mBS <- c(mBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = max)))
-}
-```
-
-Add environmental data values to the group day means data frame.
-```{r}
-df$aCAPE <- aCAPE
-df$aHLCY <- aHLCY
-df$aCIN <- aCIN
-df$aUSTM <- aUSTM
-df$aVSTM <- aVSTM
-df$aBS <- aBS
-df$aRATIO <- aRATIO
-df$mCAPE <- mCAPE
-df$mHLCY <- mHLCY
-df$mCIN <- mCIN
-df$mUSTM <- mUSTM
-df$mVSTM <- mVSTM
-df$mBS <- mBS
-```
-
-Save `df` so we can work on the models below without needing to run all the code above.
-```{r}
-#save(df, file = "df.RData")
-load("df.RData")
-dim(df)
-```
+#################################
+## Linear Mixed Effects Models ##
+#################################
 
 Time series of environmental factors. Mean of the maximum Bulk Shear for each big day for each month.
 ```{r}
 library(dplyr)
 library(ggplot2)
-df %>%
+BigDays.sfdfT %>%
   group_by(Year) %>%
   summarize(mEV = mean(mBS)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
@@ -707,7 +812,7 @@ ggplot(., aes(x = Year, y = mEV)) +
 
 Random effects. Summarize the average ATE and number of tornadoes by month.
 ```{r}
-df %>%
+BigDays.sfdfT %>%
   group_by(Mo) %>%
   summarize(mED = mean(GroupDayTotalED)/10^12,
             nT = sum(nT))
@@ -715,46 +820,46 @@ df %>%
 
 Models for ATE. First scale the variables.
 ```{r}
-df$aCAPE2 <- df$aCAPE/1000
-df$aHLCY2 <- df$aHLCY/100
-df$aCIN2 <- df$aCIN/100
-df$aBS2 <- df$aBS/10
-df$aUSTM2 <- df$aUSTM/10
-df$aVSTM2 <- df$aVSTM/10
+BigDays.sfdfT$aCAPE2 <- BigDays.sfdfT$aCAPE/1000
+BigDays.sfdfT$aHLCY2 <- BigDays.sfdfT$aHLCY/100
+BigDays.sfdfT$aCIN2 <- BigDays.sfdfT$aCIN/100
+BigDays.sfdfT$aBS2 <- BigDays.sfdfT$aBS/10
+BigDays.sfdfT$aUSTM2 <- BigDays.sfdfT$aUSTM/10
+BigDays.sfdfT$aVSTM2 <- BigDays.sfdfT$aVSTM/10
 
-df$mCAPE2 <- df$mCAPE/1000
-df$mHLCY2 <- df$mHLCY/100
-df$mCIN2 <- df$mCIN/100
-df$mBS2 <- df$mBS/10
-df$mUSTM2 <- df$mUSTM/10
-df$mVSTM2 <- df$mVSTM/10
+BigDays.sfdfT$mCAPE2 <- BigDays.sfdfT$mCAPE/1000
+BigDays.sfdfT$mHLCY2 <- BigDays.sfdfT$mHLCY/100
+BigDays.sfdfT$mCIN2 <- BigDays.sfdfT$mCIN/100
+BigDays.sfdfT$mBS2 <- BigDays.sfdfT$mBS/10
+BigDays.sfdfT$mUSTM2 <- BigDays.sfdfT$mUSTM/10
+BigDays.sfdfT$mVSTM2 <- BigDays.sfdfT$mVSTM/10
 ```
 
 ```{r}
 library(lme4)
 m1 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo),
              weights = nT, 
-             data = df)
+             data = BigDays.sfdfT)
 summary(m1)
 
 m2 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mCAPE2,
              weights = nT, 
-             data = df)
+             data = BigDays.sfdfT)
 summary(m2)
 
 m3 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mBS2,
              weights = nT, 
-             data = df)
+             data = BigDays.sfdfT)
 summary(m3)
 
 model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
                   mCAPE2 + mBS2,
              weights = nT, 
-             data = df)
+             data = BigDays.sfdfT)
 summary(model1)
 confint(model1, method = "Wald")
 
-df2 <- df %>%
+df2 <- BigDays.sfdfT %>%
   filter(Mo > 2 & Mo < 7)
 
 model2 <- lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
@@ -763,7 +868,7 @@ model2 <- lm(log(GroupDayTotalED) ~  I(Yr - 2004) +
               data = df2)
 summary(model2)
 
-df3 <- df %>%
+df3 <- BigDays.sfdfT %>%
   filter(Mo <= 2 | Mo >= 7)
 
 model3 <- lm(log(GroupDayTotalED) ~ 
@@ -786,49 +891,8 @@ xtable(x$coefficients, digits = 3)
 
 Observed versus predicted.
 ```{r}
-df$preATE <- exp(predict(model1))
-cor(df$preATE, df$GroupDayTotalED)
-```
-
-Plots for the interaction term. NOT USED.
-```{r}
-library(interplot)
-out.df <- interplot(m = model1, var1 = "mCAPE2", var2 = "mCIN2", plot = FALSE)
-
-out.df <- out.df %>%
-  mutate(mCIN = mCIN2 * 100,
-         coef2 = (exp(coef) - 1) * 100,
-         lb2 = (exp(lb) - 1) * 100,
-         ub2 = (exp(ub) - 1) * 100)
-
-p1 <- ggplot(out.df, aes(x = mCIN, y = coef2)) +
-  geom_line() +
-  geom_ribbon(aes(x = mCIN, ymin = lb2, ymax = ub2), fill = "gray70", alpha = .3) +
-  scale_x_continuous(limits = c(-500, 0)) +
-  xlab(expression(paste("CIN [J/kg]"))) + 
-  ylab("CAPE's Effect on Accumulated Tornado Energy\n[% Increase/1000 J/kg]") +
-  theme_minimal()
-
-p2 <- ggplot(df, aes(x = mCIN)) +
-  geom_histogram(fill = "gray70", color = "white") +
-  scale_x_continuous(limits = c(-500, 0)) +
-  theme_void()
-
-library(patchwork)
-p2 + p1 + plot_layout(ncol = 1, heights = c(1, 6))
-```
-
-Locate specific values on the plot. NOT USED.
-```{r}
-# CIN at 250 J/kg
-(exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -2.5)$y) - 1) * 100
-(exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -2.5)$y) - 1) * 100
-(exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -2.5)$y) - 1) * 100
-
-# CIN at 50 J/kg
-(exp(approx(x = out.df$mCIN2, y = out.df$coef, xout = -.5)$y) - 1) * 100
-(exp(approx(x = out.df$mCIN2, y = out.df$ub, xout = -.5)$y) - 1) * 100
-(exp(approx(x = out.df$mCIN2, y = out.df$lb, xout = -.5)$y) - 1) * 100
+BigDays.sfdfT$preATE <- exp(predict(model1))
+cor(BigDays.sfdfT$preATE, BigDays.sfdfT$GroupDayTotalED)
 ```
 
 Observed versus prediction plot for ATE.
@@ -887,12 +951,12 @@ ggplot(model1.df, aes(.scresid)) +
   geom_histogram()
 
 plt <- sm::sm.density(model1.df$.resid, model = "normal")
-plt.df <- data.frame(x = plt$eval.points, 
+plt.BigDays.sfdfT <- data.frame(x = plt$eval.points, 
                      y = plt$estimate,
                      ub = plt$upper, 
                      lb = plt$lower)
 
-ggplot(plt.df, aes(x = x, y = y)) +
+ggplot(plt.BigDays.sfdfT, aes(x = x, y = y)) +
   geom_line() +
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray70", alpha = .3)
 ```
@@ -900,7 +964,7 @@ ggplot(plt.df, aes(x = x, y = y)) +
 Create a data frame of the over predicted big days. 
 ```{r}
 dates<- c("1995-04-19", "1999-01-22", "2000-05-18", "2004-05-24", "2010-10-26", "2011-04-19", "2011-04-28")
-overpreddays <- df %>%
+overpreddays <- BigDays.sfdfT %>%
   filter(as.character(cDate) %in% dates)    
 ```
 
@@ -908,11 +972,11 @@ overpreddays <- df %>%
 Create a data frame of the under predicted big days. 
 ```{r}
 # underdays <- c("2003-05-04", "2008-02-05", "2011-04-27") 
-# underpreddays <- df %>%
+# underpreddays <- BigDays.sfdfT %>%
 #  filter(cDate %in% overdays)    **Returning nothing
 
 dates <- c("1999-05-03", "1999-01-21", "2004-05-22", "2008-02-05", "2011-04-27")
-underpreddays <- df %>%
+underpreddays <- BigDays.sfdfT %>%
   filter(as.character(cDate) %in% dates) 
 ```
 
