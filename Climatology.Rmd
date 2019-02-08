@@ -14,12 +14,12 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 Set working directory and load packages.
 ```{r}
 suppressMessages(library(lubridate))
-library(sf)
-library(tmap)
-library(USAboundaries)
-library(rgeos)
-library(dplyr)
-library(ggplot2)
+suppressMessages(library(sf))
+suppressMessages(library(tmap))
+suppressMessages(library(USAboundaries))
+suppressMessages(library(rgeos))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
