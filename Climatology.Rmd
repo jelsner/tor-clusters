@@ -13,7 +13,7 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Set working directory and load packages.
 ```{r}
-library(lubridate)
+suppressMessages(library(lubridate))
 library(sf)
 library(tmap)
 library(USAboundaries)
