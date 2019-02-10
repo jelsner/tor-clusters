@@ -13,13 +13,13 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 Set working directory and load packages.
 ```{r}
-library(lubridate)
-library(sf)
-library(tmap)
-library(USAboundaries)
-library(rgeos)
-library(dplyr)
-library(ggplot2)
+suppressMessages(library(lubridate))
+suppressMessages(library(sf))
+suppressMessages(library(tmap))
+suppressMessages(library(USAboundaries))
+suppressMessages(library(rgeos))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
 ```
 
 The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
@@ -92,7 +92,7 @@ Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
 space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
-
+a
 Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
