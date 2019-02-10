@@ -93,7 +93,7 @@ space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
 a
-Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters every second for an average speed of tornado-generating storms. 
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r}
@@ -102,6 +102,11 @@ dt <- dist(time)
 dst <- ds + dt
 rm(ds, dt)
 ```
+
+```{r}
+#save(dst, file = "SpaceTime.RData")
+```
+
 
 Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
 
@@ -320,7 +325,7 @@ library(xts)
 BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime, n = (60 * 60 * 3)) - 3600 * 3)
 ```
 
-Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs. DON'T USE!
+Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs.
 ```{r}
 NARRday = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%Y/%m/%d")
 NARRZtime = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%H")
@@ -335,7 +340,7 @@ BigDays.sfdfT %>%
   summarize(count = n())
 ```
 
-Create a downloadable string of information for the varying NARR times. DON'T USE
+Create a downloadable string of information for the varying NARR times. 
 ```{r}
 BigDays.sfdfT <- BigDays.sfdfT %>%
   mutate(YrMoDa = gsub("/", "", NARRday),
