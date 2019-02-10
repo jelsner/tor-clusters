@@ -97,7 +97,7 @@ Next compute pairwise Euclidean distances in space and, separately, in time usin
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r}
-ds <- dist(space) / 10
+ds <- dist(space) / 15
 dt <- dist(time)
 dst <- ds + dt
 rm(ds, dt)
@@ -153,7 +153,7 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
-Over the period 1994-2017 there were 137 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
+Over the period 1994-2017 there were 151 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
 ```{r}
 #FUHRMANN 2014
 Groups.sfdfT %>%
@@ -230,10 +230,10 @@ Distribution of the number of days each group lasts.
 dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
-(137-49)/137 * 100
+(151-46)/151 * 100 
 ```
 
-There are 49 groups lasting only one day, 71 groups lasting two days, etc.
+There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
 ```{r}
@@ -261,6 +261,7 @@ False Negative: How many Forbes/Fuhrmann picked up that we did not
 % Match: F match Z / sum(F & Z )
 ```{r}
 FPFN <- read.csv("FPFN_Forbes.csv")
+FPFN <- FPFN[1:8,]
 FPFN
 ```
 
@@ -305,7 +306,7 @@ BigDays.sfdfT <- Tor.sfdfT %>%
 dim(BigDays.sfdfT)
 ```
 
-There are 177 big days in large groups. These will be used for further analysis and modeling.
+There are 204 big days in large groups. These will be used for further analysis and modeling.
 
 Convert `StartTime` and `EndTime` to UTC.
 ```{r}
@@ -384,8 +385,7 @@ Data is downloaded from NCAR's North American Regional Reanalysis (https://rda.u
 
 Spatial Extent: 
 Longitude Range: Westernmost = 148.64E Easternmost = 2.568W
-Latitude Range: Southernmost = 0.897N Northernmost = 85.333N 
-
+Latitude Range: Southernmost = 0.897N Northernmost = 85.333N
 
 ```{r}
 BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
