@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -457,7 +457,7 @@ BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
-save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "BigDays.RData")
+#save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "BigDays.RData")
 load("BigDays.RData")
 dim(BigDays.sfdfT)
 ```
@@ -487,15 +487,15 @@ Groups.sfdfT %>%
 
 Map the locations (start points) of the top 25 tornado groups by energy dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
 ```{r}
-BigDays.sfdfT <- as.data.frame(Groups.sfdfT) %>%
+Top25BigDays <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 25, wt = GroupTotalED) %>%
   arrange(GroupTotalED)
 
-sfdf <- Torn.sfT %>%
-   filter(groupNumber %in% BigDays.sfdfT$groupNumber) %>%
+sfdf <- BigDayTornadoes %>%
+   filter(groupNumber %in% Top25BigDays$groupNumber) %>%
    mutate(EF = factor(mag))
 
-sfdf2 <- left_join(sfdf, BigDays.sfdfT, by = "groupNumber") %>%
+sfdf2 <- left_join(sfdf, Top25BigDays, by = "groupNumber") %>%
   arrange(GroupTotalED, EF)
 ```
 
@@ -579,25 +579,23 @@ cDay5 <- longestdaytorns %>%
 states.sf <- us_states()
 counties.sf <- us_counties()
 
-tm_shape(longestgroup) + 
-  tm_borders(col = "gray15", alpha = 1, lwd = 5) +
-  tm_scale_bar(width = .75, size = 1.25, lwd = 2) +
-  tm_compass(size = 5, lwd = 2, fontsize = 1) + 
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
 tm_shape(stateBorders) + 
   tm_borders(col = "gray15", alpha = 1) +
-  tm_scale_bar(width = 10, size = 10, lwd = 3) +
   tm_layout(legend.bg.color = "white", legend.text.size = .75) +
 tm_shape(counties.sf) +
   tm_borders(col = "gray40", alpha = .3) +
-  tm_scale_bar(width = 10, size = 10) +
-  tm_format("World", legend.position = c("left", "top"),
+tm_shape(longestgroup, projection = "merc", is.master = TRUE) + 
+  tm_borders(col = "gray15", alpha = 1, lwd = 5) +
+  tm_scale_bar(width = .75, size = 1.25, lwd = 2) +
+  tm_compass(size = 5, lwd = 2, fontsize = 1) + 
+    tm_format("World", legend.position = c("left", "top"),
                     attr.position = c("left", "top"),
                    legend.frame = FALSE,
                    #title = "Longest Group of Tornadoes",
                    #title.size = 1.3,
                    #title.position = c("left", "TOP"),
                    inner.margins = c(.1, .3, .15, .3)) +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
 tm_shape(cDay1) +
   tm_symbols(size = 3, col = "yellow") + 
 tm_shape(cDay2) +
@@ -614,6 +612,14 @@ tm_shape(cDay5) +
 ##################
 # Stats and Maps #
 ##################
+
+Top 10 Big Tornado Days: 
+```{r}
+BigDays.sfdfT %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
+```
+
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -633,12 +639,13 @@ table(BigDays.sfdfT$Month)
 
 61% of all big days in large groups occur during April, May, and June.
 
-Top 10 biggest tornado days within the largest groups.
+Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
 ```{r}
-BigDays.sfdfT %>%
-    mutate(ATEinTW = paste(round(GroupDayTotalED/10^12), "TW")) %>%
-  top_n(n = 20, nT) %>%
-  arrange(desc(nT))
+counties.sf <- st_transform(counties.sf, 
+                            crs = st_crs(BigDays.sfdfT))
+
+stateBorders <- st_transform(stateBorders, 
+                            crs = st_crs(BigDays.sfdfT))
 ```
 
 Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
@@ -651,17 +658,12 @@ May30 <- st_convex_hull(May30)
 May30centroid <- groupDayCentroids.sfdfT %>%
   filter(cDate == "2004-05-30")
 
-May30tornadoes <- Torn.sfT %>% 
+May30tornadoes <- BigDayTornadoes %>% 
   filter(groupNumber == May30centroid$groupNumber)
 ```
 
 Make a map of the May 30 tornado day. Obtain the state and county boundaries from the **USAboundaries** package. 
 ```{r}
-states.sf <- us_states()
-counties.sf <- us_counties()
-
-tm_shape(May30) +
-  tm_borders(col = "red", lwd = 3) +
 tm_shape(stateBorders) + 
   tm_borders(col = "gray15", alpha = 1) +
   tm_scale_bar(width = 0.5, size = 1.25, lwd = 2) +
@@ -677,6 +679,8 @@ tm_shape(counties.sf) +
                    #title.size = 1.3,
                    #title.position = c("left", "TOP"),
                    inner.margins = c(.2, .2, .2, .2)) +
+tm_shape(May30, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "red", lwd = 3) +
 tm_shape(May30tornadoes) +
   tm_symbols(size = .75, col = "black") +
 tm_shape(May30centroid) +
@@ -690,10 +694,10 @@ x <- st_convex_hull(groupDayCentroids.sfdfT)
 
 tm_shape(x) +
   tm_symbols(alpha = 0, border.alpha = 0) +
-tm_shape(stateBorders) + 
+tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders(col = "gray15", alpha = 1) +
   tm_compass(size = 5) + tm_scale_bar(width = 0.6, size = 1.5) +
-tm_shape(counties.sf) +
+tm_shape(counties.sf, projection = "laea_NA", is.master = TRUE) +
   tm_borders(col = "gray40", alpha = .3) +
   tm_compass() + 
   tm_scale_bar(width = 8, size = 8) +
@@ -748,12 +752,6 @@ tm_shape(BigDays.sfdfT) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders()
-```
-
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
-```{r}
-counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(BigDays.sfdfT))
 ```
 
 Intersect
