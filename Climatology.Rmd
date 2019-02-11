@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -128,7 +128,7 @@ proc.time() - stime
 
 Add the group number to each tornado. 
 ```{r, eval = FALSE}
-Tor.sfdfT$groupNumber <- groupNumber
+All_Tornadoes$groupNumber <- groupNumber
 ```
 
 Compute group-level statistics. Keep only tornado groups with at least 30 tornadoes.
@@ -163,7 +163,7 @@ dim(Groups.sfdfT)
 ```
 
 ```{r}
-GroupTornadoes <- Tor.sfdfT %>%
+GroupTornadoes <- All_Tornadoes %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber)
 ```
 
@@ -239,7 +239,7 @@ ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) +
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r, eval = FALSE}
-BigDays.sfdfT <- Tor.sfdfT %>%
+BigDays.sfdfT <- All_Tornadoes %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n(),
@@ -261,14 +261,25 @@ dim(BigDays.sfdfT)
 
 There are 212 big days in large groups. These will be used for further analysis and modeling.
 
+What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
+```{r}
+TotalBigDays <- All_Tornadoes %>%
+  group_by(groupNumber, cDate) %>%
+  summarize(nT = n()) %>%
+  filter(nT >= 10)
+
+dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
+```
+XX% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+
 Create a unique ID for each big day and each tornado. Extract the tornadoes associated with each big day using the unique ID. 
 ```{r, eval = FALSE}
-Torn.sfT <- Tor.sfdfT %>%
+BigDayTornadoes <- All_Tornadoes %>%
    mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
 BigDays.sfdfT <- BigDays.sfdfT %>%
    mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
 
-Torn.sfT <- Torn.sfT %>%
+BigDayTornadoes <- BigDayTornadoes %>%
   filter(ID %in% BigDays.sfdfT$ID)
 
 sum(BigDays.sfdfT$nT)
@@ -448,7 +459,7 @@ BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
-#save(BigDays.sfdfT, Groups.sfdfT, Torn.sfT, GroupTornadoes, file = "BigDays.RData")
+#save(BigDays.sfdfT, Groups.sfdfT, BigDayTornadoes, GroupTornadoes, All_Tornadoes file = "BigDays.RData")
 load("BigDays.RData")
 dim(BigDays.sfdfT)
 ```
@@ -600,6 +611,7 @@ tm_shape(cDay4) +
 tm_shape(cDay5) +
   tm_symbols(size = 3, col = "magenta")
 ```
+**Figure 1: The September 4 – 8, 2004 event has the duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day. (Yellow: 9/4; Blue: 9/5; Red: 9/6; Green: 9/7; Pink: 9/8)**  
   
 ##################
 # Stats and Maps #
@@ -607,29 +619,21 @@ tm_shape(cDay5) +
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
-sum(BigDays.sfdfT$GroupDayCas)/sum(Torn.sfT$cas) * 100
-sum(BigDays.sfdfT$GroupDayFat)/sum(Torn.sfT$fat) * 100
+sum(BigDays.sfdfT$GroupDayCas)/sum(All_Tornadoes$cas) * 100
+sum(BigDays.sfdfT$GroupDayFat)/sum(All_Tornadoes$fat) * 100
 ```
-
-What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
-```{r}
-TotalBigDays <- Torn.sfT %>%
-  group_by(groupNumber, cDate) %>%
-  summarize(nT = n()) %>%
-  filter(nT >= 10)
-
-dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
-```
-25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
 table(table(BigDays.sfdfT$groupNumber))
 table(BigDays.sfdfT$Year)
 table(BigDays.sfdfT$Month)
+
+#Peak Season: 
+((50 + 56 + 23)/ 212) *100
 ```
 
-71% of all big days in large groups occur during April, May, and June.
+61% of all big days in large groups occur during April, May, and June.
 
 Top 10 biggest tornado days within the largest groups.
 ```{r}
