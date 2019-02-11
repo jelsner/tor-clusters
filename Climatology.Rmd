@@ -11,7 +11,7 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 
 ## Part 1: Tornado data
 
-Set working directory and load packages.
+Set working directory and load packages. Suppress the messages of the packages. 
 ```{r}
 suppressMessages(library(lubridate))
 suppressMessages(library(sf))
@@ -101,8 +101,8 @@ Tor.sfdfT <- st_transform(Tor.sfdf, crs = 102004)
 space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
-a
-Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters every second for an average speed of tornado-generating storms. 
+
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 15 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters per second (~34 mph) for an average speed of tornado-generating storms. 
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r, eval = FALSE}
@@ -111,11 +111,6 @@ dt <- dist(time)
 dst <- ds + dt
 rm(ds, dt)
 ```
-
-```{r, eval = FALSE}
-#save(dst, file = "SpaceTime.RData")
-```
-
 
 Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
 
@@ -167,11 +162,16 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
+```{r}
+GroupTornadoes <- Tor.sfdfT %>%
+  filter(groupNumber %in% Groups.sfdfT$groupNumber)
+```
+
 ############################
 ## Forbes 2004 Comparison ##
 ############################
 
-Over the period 1994-2017 there were 151 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
+Over the period 1994-2017 there were 155 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
 ```{r, eval = FALSE}
 #FUHRMANN 2014
 Groups.sfdfT %>%
@@ -322,11 +322,6 @@ x <- cbind(as.character(bigdays), as.character(bigdaytimes))
 write.csv(x, "BigDays.csv")
 ```
 
-```{r, eval = FALSE}
-BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
-  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
 ```{r, eval = FALSE}
 BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
@@ -453,7 +448,7 @@ BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
-#save(BigDays.sfdfT, Groups.sfdfT, Torn.sfT, file = "BigDays.RData")
+#save(BigDays.sfdfT, Groups.sfdfT, Torn.sfT, GroupTornadoes, file = "BigDays.RData")
 load("BigDays.RData")
 dim(BigDays.sfdfT)
 ```
@@ -487,7 +482,7 @@ BigDays.sfdfT <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 25, wt = GroupTotalED) %>%
   arrange(GroupTotalED)
 
-sfdf <- Tor.sfdfT %>%
+sfdf <- Torn.sfT %>%
    filter(groupNumber %in% BigDays.sfdfT$groupNumber) %>%
    mutate(EF = factor(mag))
 
@@ -503,7 +498,7 @@ stateBorders <- us_states(states = sts)
 tm_shape(stateBorders) + 
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE) +
-  tm_shape(sfdf2) +
+tm_shape(sfdf2) +
   tm_facets(by = "GroupTotalED", ncol = 5)  +
   tm_symbols(col = "EF", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
   tm_layout(panel.labels = paste(BigDays.sfdfT$Name2, BigDays.sfdfT$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
@@ -531,19 +526,92 @@ as.data.frame(Groups.sfdfT) %>%
   mutate(prop = prop.table(n))
 ```
 
+Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
+```{r}
+groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
+groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
+```
+
+Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+```{r}
+BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
+BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+Map of the longest tornado outbreak. Tornado points colored by cDate. 
+
+```{r}
+longestgroup <- Groups.sfdfT %>%
+  filter(groupNumber == 3075)
+longestgroup <- st_convex_hull(longestgroup)
+
+#longestdays <- BigDays.sfdfT %>%
+ # filter(groupNumber == 3075)
+
+longestdaytorns <- Torn.sfT %>%
+  filter(groupNumber == 3075)
+cDay1 <- longestdaytorns %>%
+  filter(cDate == "2004-09-05")
+cDay2 <- longestdaytorns %>%
+  filter(cDate == "2004-09-06")
+cDay3 <- longestdaytorns %>%
+  filter(cDate == "2004-09-07")
+cDay4 <- longestdaytorns %>%
+  filter(cDate == "2004-09-08")
+```
+
+
+```{r}
+states.sf <- us_states()
+counties.sf <- us_counties()
+
+
+tm_shape(longestgroup) + 
+  tm_borders(col = "gray15", alpha = 1, lwd = 4) +
+  tm_scale_bar(width = 0.5, size = 1.25, lwd = 2) +
+  tm_compass(size = 5) + 
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray15", alpha = 1) +
+  tm_scale_bar(width = 0.5, size = 1.25, lwd = 2) +
+  tm_compass(size = 5) + 
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+tm_shape(counties.sf) +
+  tm_borders(col = "gray40", alpha = .3) +
+  tm_scale_bar(width = 8, size = 8) +
+  tm_format("World", legend.position = c("left", "top"),
+                   attr.position = c("left", "top"),
+                   legend.frame = FALSE,
+                   #title = "May 30th Tornado Group",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.1, .3, .1, .3)) +
+tm_shape(cDay1) +
+  tm_symbols(size = 2, col = "green") + 
+tm_shape(cDay2) +
+  tm_symbols(size = 2, col = "blue") + 
+tm_shape(cDay3) +
+  tm_symbols(size = 2, col = "red") + 
+tm_shape(cDay4) +
+  tm_symbols(size = 2, col = "magenta") 
+```
+  
 ##################
 # Stats and Maps #
 ##################
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
-sum(BigDays.sfdfT$GroupDayCas)/sum(Tor.sfdfT$cas) * 100
-sum(BigDays.sfdfT$GroupDayFat)/sum(Tor.sfdfT$fat) * 100
+sum(BigDays.sfdfT$GroupDayCas)/sum(Torn.sfT$cas) * 100
+sum(BigDays.sfdfT$GroupDayFat)/sum(Torn.sfT$fat) * 100
 ```
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
 ```{r}
-TotalBigDays <- Tor.sfdfT %>%
+TotalBigDays <- Torn.sfT %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n()) %>%
   filter(nT >= 10)
@@ -569,13 +637,6 @@ BigDays.sfdfT %>%
   arrange(desc(nT))
 ```
 
-Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
-```{r}
-groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
-groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
-groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
-```
-
 Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
 ```{r}
@@ -586,7 +647,7 @@ May30 <- st_convex_hull(May30)
 May30centroid <- groupDayCentroids.sfdfT %>%
   filter(cDate == "2004-05-30")
 
-May30tornadoes <- Tor.sfdfT %>% 
+May30tornadoes <- Torn.sfT %>% 
   filter(groupNumber == May30centroid$groupNumber)
 ```
 
@@ -676,14 +737,6 @@ groupDayCentroids.sfdfT %>%
 ```
 
 There is no long-term trend in annual average outbreak area. There is no long-term trend in annual average outbreak density (number of tornadoes per unit area).
-
-Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
-```{r}
-BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
-BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
-BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
-  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
 
 Check on a map.
 ```{r}
@@ -1078,23 +1131,23 @@ test<- rbind(overpredday2, overpredday3, underpredday1, underpredday2, underpred
 ```{r}
 overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
 
-overpred1 <- Tor.sfdfT %>%
+overpred1 <- Torn.sfT %>%
   filter(cDate == "2014-02-20")
-overpred2 <- Tor.sfdfT%>%
+overpred2 <- Torn.sfT%>%
   filter(cDate == "1995-04-19")
-overpred3 <- Tor.sfdfT%>%
+overpred3 <- Torn.sfT%>%
   filter(cDate == "2000-05-18")
-overpred4 <- Tor.sfdfT %>%
+overpred4 <- Torn.sfT %>%
   filter(cDate == "2011-04-28")
 
 ```
 
 ```{r}
-underpred1 <- Tor.sfdfT %>%
+underpred1 <- Torn.sfT %>%
   filter(cDate == "2003-05-04")
-underpred2 <- Tor.sfdfT %>%
+underpred2 <- Torn.sfT %>%
   filter(cDate == "2008-02-05")
-underpred3 <- Tor.sfdfT %>%
+underpred3 <- Torn.sfT %>%
   filter(cDate == "2011-04-27")
 dat <- rbind(underpred1,underpred2,underpred3,overpred1,overpred2,overpred3,overpred4)
 dat <- rbind(overpred2, overpred3, underpred1, underpred2, underpred3, overpred4, overpred1)
