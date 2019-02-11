@@ -231,7 +231,6 @@ ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) +
   #                                      by = 15000), 1)) + 
   ylim(0,100)
 ```
-** Figure 1: Percent agreement between our tornado groups and the tornado outbreaks identified in Forbes (2004). ** 
 
 ########################################
 ## Extract Big Days from Large Groups ##
@@ -258,7 +257,6 @@ BigDays.sfdfT <- All_Tornadoes %>%
          ATE = GroupDayTotalED/10^12)                                                                                      
 dim(BigDays.sfdfT)
 ```
-
 There are 212 big days in large groups. These will be used for further analysis and modeling.
 
 What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
@@ -270,7 +268,7 @@ TotalBigDays <- All_Tornadoes %>%
 
 dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
-XX% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Create a unique ID for each big day and each tornado. Extract the tornadoes associated with each big day using the unique ID. 
 ```{r, eval = FALSE}
@@ -459,7 +457,7 @@ BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
-#save(BigDays.sfdfT, Groups.sfdfT, BigDayTornadoes, GroupTornadoes, All_Tornadoes file = "BigDays.RData")
+save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "BigDays.RData")
 load("BigDays.RData")
 dim(BigDays.sfdfT)
 ```
