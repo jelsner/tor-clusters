@@ -882,14 +882,56 @@ ggplot(., aes(x = Year, y = nBD)) +
 ```
 **Figure 6: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
 
+How many big days have an ATE > 30 TW? 
+```{r}
+BigDayATE <- BigDays.sfdfT %>%
+  filter(ATE >= 10)
+
+48/212 *100
+```
+23% of our big days have ATE greater than 10 TW. 
+
+First a plot visualizing the data together with some possible theoretical distributions in a skewness-kurtosis space:
+```{r}
+library(fitdistrplus)
+test <- BigDays.sfdfT$ATE
+descdist(test, boot = 1000)
+```
+
+```{r}
+gammafit  <-  fitdistrplus::fitdist(test, "gamma")
+weibullfit  <-  fitdistrplus::fitdist(test, "weibull")
+lnormfit  <-  fitdistrplus::fitdist(test, "lnorm")  # not supported?
+
+library(flexsurv) # on CRAN
+
+gengammafit  <-  fitdistrplus::fitdist(test, "gengamma",
+                                       start=function(d) list(mu=mean(d),
+                                                              sigma=sd(d), Q = 0))
+
+qqcomp(list(gammafit, weibullfit, lnormfit, gengammafit),
+       legendtext=c("gamma", "lnorm", "weibull", "gengamma") )
+```
+** Lnorm fits the best ** 
+
+Another test
+```{r}
+library(car)
+qqPlot(log(test)) ## cannot assume normality
+qqPlot(sqrt(test))
+qqPlot((test^0.3))
+qqPlot(test, distribution = "gamma", shape = 3)
+```
+Because the lines do not fall inside the blue line, you cannot assume normality using the log scale. (http://www.sthda.com/english/wiki/qq-plots-quantile-quantile-plots-r-base-graphs)
+
 Density plot of ATE.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
-
-ggplot(BigDays.sfdfT, aes(log10(GroupDayTotalED))) +
+labels <- c("-2", "-1", "0", "1", "2", "3")
+ggplot(BigDays.sfdfT, aes(log(ATE))) +
   geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
-  scale_x_continuous(breaks = 10:14, labels= labels) +
-  xlab("Accumulated Tornado Energy [GW]") +
+  scale_x_continuous(breaks = 10:15, labels= labels) +
+  xlab("Accumulated Tornado Energy [TW]") +
   ylab("Frequency") +
   theme_minimal() +
   theme(text = element_text(size=20))
