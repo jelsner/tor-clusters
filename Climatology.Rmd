@@ -669,7 +669,7 @@ tm_shape(counties.sf) +
 tm_shape(May30, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3) +
 tm_shape(May30tornadoes, col = "Hour") +
-  tm_symbols(size = 1.5, col = "Hour", n = 6, palette = "Reds") +
+  tm_symbols(size = 3, col = "Hour", breaks = c(0, 6, 12, 18, 24), palette = "Reds") +
     tm_layout(legend.title.size = 1.5,
             legend.position = c("right", "bottom"), 
             legend.stack = "horizontal",
