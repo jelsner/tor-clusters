@@ -891,40 +891,46 @@ BigDayATE <- BigDays.sfdfT %>%
 ```
 23% of our big days have ATE greater than 10 TW. 
 
-First a plot visualizing the data together with some possible theoretical distributions in a skewness-kurtosis space:
+First calculate the mean and variance of ATE
 ```{r}
 library(fitdistrplus)
-test <- BigDays.sfdfT$ATE
+ATE_TW <- BigDays.sfdfT$ATE
 
-hist(test)
-hist(log(test)) 
+mean(ATE_TW) # 7.8
+var(ATE_TW) # 309
+```
+Mean and varaince
 
-descdist(test)
+First a plot visualizing the data together with some possible theoretical distributions in a skewness-kurtosis space:
+``` {r}
+hist(ATE_TW)
+hist(log(ATE_TW)) 
+
+descdist(ATE_TW)
 ```
 
 ```{r}
-gammafit  <-  fitdistrplus::fitdist(test, "gamma")
-weibullfit  <-  fitdistrplus::fitdist(test, "weibull")
-lnormfit  <-  fitdistrplus::fitdist(test, "lnorm")  # not supported?
+gammafit  <-  fitdistrplus::fitdist(ATE_TW, "gamma")
+weibullfit  <-  fitdistrplus::fitdist(ATE_TW, "weibull")
+lnormfit  <-  fitdistrplus::fitdist(ATE_TW, "lnorm")  # not supported?
 
 library(flexsurv) # on CRAN
 
-gengammafit  <-  fitdistrplus::fitdist(test, "gengamma",
+gengammafit  <-  fitdistrplus::fitdist(ATE_TW, "gengamma",
                                        start=function(d) list(mu=mean(d),
                                                               sigma=sd(d), Q = 0))
 
 qqcomp(list(gammafit, weibullfit, lnormfit, gengammafit),
        legendtext=c("gamma", "lnorm", "weibull", "gengamma") )
 ```
-** Lnorm fits the best ** 
+** Lnorm and gamma fit the best ** 
 
-Another test
+Another ATE_TW
 ```{r}
 library(car)
-qqPlot(log(test)) ## cannot assume normality
-qqPlot(sqrt(test))
-qqPlot((test^0.3))
-qqPlot(test, distribution = "gamma", shape = 3)
+qqPlot(log(ATE_TW)) ## cannot assume normality because it is outside the blue line. 
+
+qqPlot(ATE_TW, distribution = "gamma", shape = 1)
 ```
 Because the lines do not fall inside the blue line, you cannot assume normality using the log scale. (http://www.sthda.com/english/wiki/qq-plots-quantile-quantile-plots-r-base-graphs)
 
