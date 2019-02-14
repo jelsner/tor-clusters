@@ -698,9 +698,9 @@ tm_shape(groupDayCentroids.sfdfT, is.master = TRUE, projection = "merc") +
   tm_symbols(col = "nT", n = 4, 
              palette = c("lightsalmon", "salmon3", "red", "red4"), legend.col.show = FALSE,
              size = "nT",
-             title.size = "Count", shape =24, 
+             shape =24, 
              scale = 3, legend.size.show = FALSE) + 
-  tm_add_legend("symbol", title = "Count", shape = 24,
+  tm_add_legend("symbol", title = "Total Tornadoes", shape = 24,
                 col = c("lightsalmon", "salmon3", "red", "red4"), 
                 size = c(.75, 1, 1.25, 1.5), 
                 labels = c("0 to 50", "50 to 100", "100 to 150", "150 to 200")) +
@@ -777,7 +777,7 @@ tm_shape(BigDays.sfdfT, is.master = TRUE, projection = "merc") +
   tm_polygons(alpha = 0, border.alpha = 0) +
 tm_shape(counties.sf) +
    tm_fill("GroupDayCount",
-            title = "Count",
+            title = "Total Big Days",
             palette = "Reds", breaks = c(0, 15, 30, 45, 60)) +
   tm_borders(col = "gray", alpha = .3) +
   tm_compass(size = 5, position = c("right", "top")) + tm_scale_bar(width = 0.6, size = 1.4) +
@@ -880,7 +880,7 @@ ggplot(., aes(x = Year, y = nBD)) +
         legend.background = element_rect(size=0.5, linetype="solid", 
                                   colour ="gray10"))
 ```
-**Figure 6: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
+**Figure 5: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
 
 How many big days have an ATE > 30 TW? 
 ```{r}
@@ -937,16 +937,15 @@ Because the lines do not fall inside the blue line, you cannot assume normality 
 Density plot of ATE.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
-labels <- c("-2", "-1", "0", "1", "2", "3")
-ggplot(BigDays.sfdfT, aes(log(ATE))) +
+ggplot(BigDays.sfdfT, aes(log(GroupDayTotalED))) +
   geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
-  scale_x_continuous(breaks = 10:15, labels= labels) +
+  scale_x_continuous(breaks = 10:14, labels= labels) +
   xlab("Accumulated Tornado Energy [TW]") +
   ylab("Frequency") +
   theme_minimal() +
   theme(text = element_text(size=20))
 ```
-**Figure 7: Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
+** Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
 
 #################################
 ## Linear Mixed Effects Models ##
@@ -956,7 +955,7 @@ Time series of environmental factors. Mean of the maximum Bulk Shear for each bi
 ```{r}
 BigDays.sfdfT %>%
   group_by(Year) %>%
-  summarize(mEV = mean(mBS)) %>%
+  summarize(mEV = mean(maxBS)) %>%
 ggplot(., aes(x = Year, y = mEV)) +
   geom_point() +
   scale_y_continuous(limits = c(0, NA)) +
@@ -971,46 +970,58 @@ BigDays.sfdfT %>%
             nT = sum(nT))
 ```
 
-Models for ATE. First scale the variables.
+Models:
 ```{r}
-BigDays.sfdfT$aCAPE2 <- BigDays.sfdfT$aCAPE/1000
-BigDays.sfdfT$aHLCY2 <- BigDays.sfdfT$aHLCY/100
-BigDays.sfdfT$aCIN2 <- BigDays.sfdfT$aCIN/100
-BigDays.sfdfT$aBS2 <- BigDays.sfdfT$aBS/10
-BigDays.sfdfT$aUSTM2 <- BigDays.sfdfT$aUSTM/10
-BigDays.sfdfT$aVSTM2 <- BigDays.sfdfT$aVSTM/10
+m1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo),
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m1) #SIG
 
-BigDays.sfdfT$mCAPE2 <- BigDays.sfdfT$mCAPE/1000
-BigDays.sfdfT$mHLCY2 <- BigDays.sfdfT$mHLCY/100
-BigDays.sfdfT$mCIN2 <- BigDays.sfdfT$mCIN/100
-BigDays.sfdfT$mBS2 <- BigDays.sfdfT$mBS/10
-BigDays.sfdfT$mUSTM2 <- BigDays.sfdfT$mUSTM/10
-BigDays.sfdfT$mVSTM2 <- BigDays.sfdfT$mVSTM/10
+m2 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxCAPE2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m2) #SIG max...not avg
+
+m3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxBS2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m3) #SIG max 
+
+m4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxSM2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m4) #SIG max 
+
+m5 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxHLCY2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m5) #SIG max...not avg 
+
+m6 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + minCIN2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m6) #SIG max...not avg 
 ```
 
+
 ```{r}
-m1 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo),
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m1)
-
-m2 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mCAPE2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m2)
-
-m3 <- lmer(log(GroupDayTotalED) ~ I(Yr - 2004) + (1|Mo) + mBS2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m3)
-
-model1 <- lmer(log(GroupDayTotalED) ~  I(Yr - 2004) + (1|Mo) + 
-                  mCAPE2 + mBS2,
+model1 <- lmer(log(GroupDayTotalED) ~   (1|Mo) + 
+                  maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2,
              weights = nT, 
              data = BigDays.sfdfT)
 summary(model1)
-confint(model1, method = "Wald")
 
+                                                                                     model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) + 
+                 maxBS2 +  minCIN2  + maxCAPE2 * maxHLCY2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(model2)
+
+AIC(model1, model2) # model 1 is better...without the interaction
+confint(model1, method = "Wald")
+```
+
+```{r}
 df2 <- BigDays.sfdfT %>%
   filter(Mo > 2 & Mo < 7)
 
