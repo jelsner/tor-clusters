@@ -242,6 +242,12 @@ BigDays.sfdfT <- All_Tornadoes %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
   group_by(groupNumber, cDate) %>%
   summarize(nT = n(),
+            n0 = sum(mag == 0),
+            n1 = sum(mag == 1),
+            n2 = sum(mag == 2),
+            n3 = sum(mag == 3),
+            n4 = sum(mag == 4),
+            n5 = sum(mag == 5),
             GroupDayTotalED = sum(ED),
             GroupDayMaxED = max(ED),
             GroupDayMeanED = mean(ED),

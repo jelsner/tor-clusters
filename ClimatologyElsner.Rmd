@@ -328,133 +328,20 @@ tm_shape(May30tornadoes) +
 tm_shape(May30centroid) +
   tm_symbols(size = 1, col = "red", shape = 24) 
 ```
-** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location, and the triangle is the geographic center of the genesis location. The dark gray line defines the minimum convex polygon around the genesis locations (convex hull). **
+** Figure: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location, and the triangle is the geographic center of the genesis location. The dark gray line defines the minimum convex polygon around the genesis locations (convex hull). **
 
-Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
-```{r}
-x <- st_convex_hull(groupDayCentroids.sfdfT)
-
-tm_shape(x) +
-  tm_symbols(alpha = 0, border.alpha = 0) +
-tm_shape(stateBorders) + 
-  tm_borders(col = "gray15", alpha = 1) +
-  tm_compass(size = 5) + tm_scale_bar(width = 0.6, size = 1.5) +
-tm_shape(counties.sf) +
-  tm_borders(col = "gray40", alpha = .3) +
-  tm_compass() + 
-  tm_scale_bar(width = 8, size = 8) +
-  tm_format("World", legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.15, .05, .075, .05)) +
-tm_shape(groupDayCentroids.sfdfT) +
-  tm_symbols(size = "nT", col = "red", title.size = "Count", legend.size.is.portrait = TRUE, shape =24, scale = 1.5) + 
-  tm_layout(legend.hist.width = 1, legend.hist.height =8, 
-  legend.title.size=1.75,
-  legend.text.size = 1.75,
-  legend.position = c("right","bottom"),
-  legend.bg.color = "white",
-  legend.bg.alpha =1) 
-```
-** Figure 3: Centroids of genesis locations occurring on big days in large groups. The triangles are sized by the number of tornadoes on that day. **
-
-Time series graphs
-```{r}
-groupDayCentroids.sfdfT %>%
-  group_by(Year) %>%
-  summarize(avgArea = mean(groupArea)) %>%
-  ggplot(., aes(x = Year, y = as.numeric(avgArea) / 10^10)) +
-    scale_y_continuous(limits = c(0, NA)) +
-    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    ylab("Group Area [100 x 100 sq. km]") +
-    theme_minimal()
-
-groupDayCentroids.sfdfT %>%
-  group_by(Year) %>%
-  summarize(avgDensity = mean(groupDensity)) %>%
-  ggplot(., aes(x = Year, y = as.numeric(avgDensity) * 10^10)) +
-    scale_y_continuous(limits = c(0, NA)) +
-    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
-    geom_point() +
-    geom_smooth(method = lm) +
-    ylab("Group Density [Tornadoes/100 x 100 sq. km]") +
-    theme_minimal()
-```
-
-There is no long-term trend in annual average outbreak area. There is no long-term trend in annual average outbreak density (number of tornadoes per unit area).
-
-Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids. Check on a map.
 ```{r}
 df <- st_convex_hull(df)
 df$HullArea <- st_area(df)
 df <- st_transform(df, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
 
-Check on a map.
-```{r}
 tm_shape(df) +
   tm_polygons(alpha = .1) + 
 tm_shape(stateBorders, projection = "laea_NA", is.master = TRUE) + 
   tm_borders()
 ```
-
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `df`.
-```{r}
-counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(df))
-```
-
-Intersect
-```{r}
-gI <- st_intersects(df, counties.sf, sparse = FALSE)
-colnames(gI) <- counties.sf$name
-counties.sf$GroupDayCount <- colSums(gI)
-```
-
-Remove Alaska, Hawaii, and Puerto Rico from the `states.sf` data frame.
-```{r}
-states.sf <- states.sf %>% 
-  filter(!stusps %in% c("AK", "PR", "HI"))
-```
-
-Create a map of the outbreak density in each county in the United States. Fill by the `GroupDayCount` column. 
-```{r}
-counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(stateBorders))
-df <- st_transform(df, 
-                            crs = st_crs(stateBorders))
-
-tm_shape(df) +
-  tm_polygons(alpha = 0, border.alpha = 0) +
-tm_shape(counties.sf) +
-   tm_fill("GroupDayCount",
-            title = "Count",
-            palette = "Reds", n = 5) +
-  tm_borders(col = "gray", alpha = .3) +
-  tm_compass(size = 5) + tm_scale_bar(width = 0.6, size = 1.4) +
-  tm_layout(legend.position = c("right", "bottom"),
-                   attr.position = c("left", "bottom"),
-                   legend.frame = FALSE,
-                   #title = "Tornado Group Days by County [1994-2017]",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.05, .0, .0, 0),legend.hist.width = 1, legend.hist.height =4, 
-  legend.title.size=1.5,
-  legend.text.size = 1.25,
-  legend.bg.color = "white",
-  legend.bg.alpha =1) +
-tm_shape(stateBorders, is.master = FALSE) +
-  tm_borders() 
-```
-** Figure 4: Big day density by county **
-
-Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
 
 Year/date plot. Initial code from: https://buzzfeednews.github.io/2018-07-wildfire-trends/
 ```{r}
@@ -473,20 +360,14 @@ ggplot(df, aes(y = Year)) +
                date_labels = "%b") +
   scale_y_reverse(limits = c(2017, 1994), 
                   breaks = c(2014, 2009, 2004, 1999, 1994)) +
-  xlab("Day of the Year") +  ylab("Year") +
+  xlab("") +  ylab("Year") +
   geom_point(aes(size = lTED, x = plot_date),  alpha = .5) +
   theme_minimal() +
-  theme(text = element_text(size=30), legend.position = "bottom", legend.background = element_rect(size=0.5, linetype="solid", 
+  theme(text = element_text(size = 30), legend.position = "bottom", legend.background = element_rect(size=0.5, linetype="solid", 
                                   colour ="gray10"))
 ```
-**Figure 5: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
+**Figure: Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
-```{r, eval = FALSE}
-df %>%
-  select(cDate, GroupDayTotalED, ATE) %>%
-  top_n(n = 10) %>%
-  arrange(desc(ATE))
-```
 Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
 
 ```{r}
@@ -512,126 +393,15 @@ df %>%
   arrange(desc(nT))
 ```
 
-Time series of annual number of big days in large groups and the annual average ATE across those days.
-```{r}
-df %>%
-  group_by(Year) %>%
-  summarize(nBD = n(),
-            avgATE = mean(ATE)) %>%
-ggplot(., aes(x = Year, y = nBD)) +
-    geom_point(aes(size = avgATE), color = "gray10", alpha = .7) +
-    scale_size_continuous(name = "ATE [TW]") +
-    scale_x_continuous(breaks = seq(1995, 2015, 5)) +
-    xlab("Year") + ylab("Number of Big Days") +
-    theme_minimal() +
-  theme(text = element_text(size=20)) +
-  theme(legend.position="bottom", legend.background = element_rect(size=0.5, linetype="solid", 
-                                  colour ="gray10"))
-```
-**Figure 6: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
-
-Density plot of ATE.
-```{r}
-labels <- c("10", "100", "1000","10000", "100000")
-
-ggplot(df, aes(log10(GroupDayTotalED))) +
-  geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
-  scale_x_continuous(breaks = 10:14, labels= labels) +
-  xlab("Accumulated Tornado Energy [GW]") +
-  ylab("Frequency") +
-  theme_minimal() +
-  theme(text = element_text(size=20))
-```
-**Figure 7: Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
-
 ## Part 2: Environmental data
 
-Get environmental data at 18Z (2p local) on the convective day. Also try this site https://rda.ucar.edu/datasets/ds608.0/ Set up a vector of URLs as character strings. Data are not available after September 30, 2014.
+Load the data from `Climatology.Rmd`.
 ```{r}
-library(lubridate)
-df <- df %>%
-  filter(cDate <= as.Date("2014-09-30")) %>%
-  mutate(Yr = Year,
-         YrMo = paste0(Year, Month),
-         YrMoDa = paste0(YrMo, Day),
-         slug2 = paste0(YrMo, "/", YrMoDa, "/", "narr-a_221_", YrMoDa, "_1800_000.grb"),
-         slug = paste0("https://nomads.ncdc.noaa.gov/data/narr/", slug2)) 
-slug <- df$slug
+load("BigDays.RData")
+dim(BigDays.sfdfT)
 ```
 
-Download the grib files. ~40 minutes to download 154 grb files from home.
-```{r, eval=FALSE}
-for(i in 1:length(slug)){
-    download.file(slug[i], paste0("Archive/NARRdata", i, ".grb"), mode = "wb")
-    }
-```
 
-Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls. https://nomads.ncdc.noaa.gov/data/narr/201104/20110427/narr-a_221_20110427_0000_000.inv
-```{r}
-library(raster)
-aCAPE <- numeric()
-aHLCY <- numeric()
-aCIN <- numeric()
-aUSTM <- numeric()
-aVSTM <- numeric()
-aBS <- numeric()
-aRATIO <- numeric()
-mCAPE <- numeric()
-mHLCY <- numeric()
-mCIN <- numeric()
-mUSTM <- numeric()
-mVSTM <- numeric()
-mBS <- numeric()
-
-for(i in 1:length(slug)){
-  print(i)
-  rb <- brick(paste0("Archive/NARRdata", i, ".grb"))
-  CAPE.rl <- raster(rb, layer = 375)
-  HLCY.rl <- raster(rb, layer = 323)
-  CIN.rl <- raster(rb, layer = 376)
-  USTM.rl <- raster(rb, layer = 324)
-  VSTM.rl <- raster(rb, layer = 325)
-  BS.rl <- sqrt(USTM.rl^2 + VSTM.rl^2)
-  RATIO.rl <- CAPE.rl/abs(CIN.rl)
-  aCAPE <- c(aCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = mean)))
-  aHLCY <- c(aHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = mean)))
-  aCIN <- c(aCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = mean)))
-  aUSTM <- c(aUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = mean)))
-  aVSTM <- c(aVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = mean)))
-  aBS <- c(aBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = mean)))
-  aRATIO <- c(aRATIO, as.numeric(raster::extract(RATIO.rl, df[i, ], fun = mean)))
-  mCAPE <- c(mCAPE, as.numeric(raster::extract(CAPE.rl, df[i, ], fun = max)))
-  mHLCY <- c(mHLCY, as.numeric(raster::extract(HLCY.rl, df[i, ], fun = max)))
-  mCIN <- c(mCIN, as.numeric(raster::extract(CIN.rl, df[i, ], fun = min)))
-  mUSTM <- c(mUSTM, as.numeric(raster::extract(USTM.rl, df[i, ], fun = max)))
-  mVSTM <- c(mVSTM, as.numeric(raster::extract(VSTM.rl, df[i, ], fun = max)))
-  mBS <- c(mBS, as.numeric(raster::extract(BS.rl, df[i, ], fun = max)))
-}
-```
-
-Add environmental data values to the group day means data frame.
-```{r}
-df$aCAPE <- aCAPE
-df$aHLCY <- aHLCY
-df$aCIN <- aCIN
-df$aUSTM <- aUSTM
-df$aVSTM <- aVSTM
-df$aBS <- aBS
-df$aRATIO <- aRATIO
-df$mCAPE <- mCAPE
-df$mHLCY <- mHLCY
-df$mCIN <- mCIN
-df$mUSTM <- mUSTM
-df$mVSTM <- mVSTM
-df$mBS <- mBS
-```
-
-Save `df` so we can work on the models below without needing to run all the code above.
-```{r}
-#save(df, file = "df.RData")
-load("df.RData")
-dim(df)
-```
 
 Time series of environmental factors. Mean of the maximum Bulk Shear for each big day for each month.
 ```{r}
