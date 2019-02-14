@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
@@ -97,7 +97,7 @@ Next compute pairwise Euclidean distances in space and, separately, in time usin
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r}
-ds <- dist(space) / 10
+ds <- dist(space) / 15
 dt <- dist(time)
 dst <- ds + dt
 rm(ds, dt)
@@ -153,30 +153,7 @@ Groups.sfdfT <- Tor.sfdfT %>%
 dim(Groups.sfdfT)
 ```
 
-Over the period 1994-2017 there were 137 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
-```{r}
-#FUHRMANN 2014
-Groups.sfdfT %>%
-  filter(Year <= 2011) %>%
-  top_n(n = 9, wt = nT) %>%
-  arrange(desc(nT))
-
-Groups.sfdfT %>%
-  filter(Year <= 2011) %>%
-  top_n(n = 9, wt = GroupTotalED) %>%
-  arrange(desc(GroupTotalED))
-
-#FORBES 2004
-Groups.sfdfT %>%
-  filter(Year <= 2004) %>%
-  top_n(n = 13, wt = nT) %>%
-  arrange(desc(nT))
-
-Groups.sfdfT %>%
-  filter(Year <= 2004) %>%
-  top_n(n = 13, wt = GroupTotalED) %>%
-  arrange(desc(GroupTotalED))
-```
+Over the period 1994-2017 there were 155 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
 
 Make tables: Top 10 tornado groups by number of tornadoes, energy dissipation, and duration.
 ```{r}
@@ -230,7 +207,7 @@ Distribution of the number of days each group lasts.
 dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
-(137-49)/137 * 100
+(155 - 46)/155 * 100
 ```
 
 There are 49 groups lasting only one day, 71 groups lasting two days, etc.
@@ -246,42 +223,6 @@ as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
 ```
-
-```{r}
-Groups.fpfn <- Groups.sfdfT %>%
-  filter(Year <= 2011)
-
-Groups.fpfn %>%
-  top_n(n = 9, wt = nT) %>%
-  arrange(desc(nT))
-```
-
-False Positive: How many outbreaks Schroder and Elsner identified, not identified by Forbes/Fuhrmann
-False Negative: How many Forbes/Fuhrmann picked up that we did not
-% Match: F match Z / sum(F & Z )
-```{r}
-FPFN <- read.csv("FPFN_Forbes.csv")
-FPFN
-```
-
-Graph of the percent match values between ours and the Forbes 2004. 
-```{r}
-ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
-  geom_line(size = 1.5) +
-  geom_point(size = 2) +
-  labs(x = "Space - Time Distance", 
-       y = "Percent") +
-  theme_minimal() +
-  theme(text = element_text(size=25)) +
-#    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
-#  theme(plot.title = element_text(hjust = 0.5)) +
-   
-#  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
- #                                       max(FPFN$Cuttree), 
-  #                                      by = 15000), 1)) + 
-  ylim(0,100)
-```
-** Figure 1: Percent agreement between our tornado groups and the tornado outbreaks identified in Forbes (2004). ** 
 
 Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
 ```{r}
@@ -303,7 +244,7 @@ df <- Tor.sfdfT %>%
 dim(df)
 ```
 
-There are 177 big days in large groups. These will be used for further analysis and modeling.
+There are 212 big days in large groups. These will be used for additional analysis and modeling.
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -320,7 +261,7 @@ TotalBigDays <- Tor.sfdfT %>%
 
 dim(df)[1]/dim(TotalBigDays)[1] * 100
 ```
-25% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
@@ -329,7 +270,7 @@ table(df$Year)
 table(df$Month)
 ```
 
-71% of all big days in large groups occur during April, May, and June.
+61% of all big days in large groups occur during April, May, and June.
 
 Top 10 biggest tornado days within the largest groups.
 ```{r}
