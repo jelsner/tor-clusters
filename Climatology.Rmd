@@ -1003,7 +1003,7 @@ m6 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + minCIN2,
 summary(m6) #SIG max...not avg 
 ```
 
-
+Fit the best model for log(ATE):
 ```{r}
 model1 <- lmer(log(GroupDayTotalED) ~   (1|Mo) + 
                   maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2,
@@ -1064,16 +1064,16 @@ model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
   filter(abs(.scresid) >= 1.7)
 
-ggplot(model1.df, aes(x = GroupDayTotalED/10^9, y = preATE/10^9, color = log10(GroupDayCas + 1))) +
+ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10(GroupDayCas + 1))) +
         # geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
          geom_point(size = 5) + 
          geom_abline(slope = 1, size = 1.25) +
          #geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
-         scale_x_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
-         scale_y_log10(limits = c(1, 300000), breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, "100", "1000", "10,000", "100,000")) +
-  ylab("Predicted ATE [GW]") + xlab("ATE [GW]") +
+         scale_x_log10(limits = c(1, 300), breaks = c(0, 10, 100, 300), labels = c(1, 10, "100", "500")) +
+         scale_y_log10(limits = c(1, 300), breaks = c(0, 10, 100, 300), labels = c(1, 10, "100", "500")) +
+  ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
 **Figure 9: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
