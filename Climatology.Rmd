@@ -12,7 +12,7 @@ Research to be submitted to the **Electronic Journal of Severe Storms Meteorolog
 ## Part 1: Tornado data
 
 Set working directory and load packages. Suppress the messages of the packages. 
-```{r, eval = FALSE}
+```{r}
 suppressMessages(library(lubridate))
 suppressMessages(library(sf))
 suppressMessages(library(tmap))
@@ -895,7 +895,11 @@ First a plot visualizing the data together with some possible theoretical distri
 ```{r}
 library(fitdistrplus)
 test <- BigDays.sfdfT$ATE
-descdist(test, boot = 1000)
+
+hist(test)
+hist(log(test)) 
+
+descdist(test)
 ```
 
 ```{r}
