@@ -1011,13 +1011,13 @@ summary(m6) #SIG max...not avg
 
 Fit the best model for log(ATE):
 ```{r}
-model1 <- lmer(log(GroupDayTotalED) ~   (1|Mo) + 
+model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
                   maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2,
              weights = nT, 
              data = BigDays.sfdfT)
 summary(model1)
 
-                                                                                     model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) + 
+model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) + 
                  maxBS2 +  minCIN2  + maxCAPE2 * maxHLCY2,
              weights = nT, 
              data = BigDays.sfdfT)
