@@ -525,6 +525,11 @@ dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
 (151-46)/151 * 100 
+
+as.data.frame(Groups.sfdfT) %>%
+  group_by(nD) %>%
+  summarize(tot_events = n(),
+            tot_torn = sum(nT))
 ```
 
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
