@@ -691,6 +691,23 @@ tm_shape(May30centroid) +
 ```
 ** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull). **
 
+Histogram of the values for the environmental variables.
+```{r}
+cape <- density(BigDays.sfdfT$maxCAPE2)
+helicity <- density(BigDays.sfdfT$maxHLCY2)
+cin <- density(BigDays.sfdfT$minCIN2)
+bulkshear <- density(BigDays.sfdfT$maxBS2)
+stormmotion <- density(BigDays.sfdfT$maxSM2)
+plot(cape, col = "blue", xlim = c(-8, 8), ylim = c(0,0.7), main = "Environmental Variables", xlab = "Value", ylab = "Density", lwd = 3)
+lines(helicity, col = "darkgreen", lwd = 3, pch = 19)
+lines(cin, col = "hotpink", lwd = 3)
+lines(bulkshear, col = "orange", lwd = 3)
+lines(stormmotion, col = "red", lwd = 3)
+legend(-8, 0.7, legend = c("CAPE/1000", "Helicity/10", "CIN/10", "Bulk Shear/10", "Storm Motion/10"), col = c("blue", "darkgreen", "hotpink", "orange", "red"), lty = 1:5, cex = 0.8)
+```
+
+
+
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
 tm_shape(stateBorders) + 
@@ -1017,12 +1034,12 @@ summary(m6) #SIG max...not avg
 Fit the best model for log(ATE):
 ```{r}
 model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
-                  maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2,
+                  maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2 ,
              weights = nT, 
              data = BigDays.sfdfT)
 summary(model1)
 
-model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) + 
+model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) +
                  maxBS2 +  minCIN2  + maxCAPE2 * maxHLCY2,
              weights = nT, 
              data = BigDays.sfdfT)
@@ -1032,7 +1049,7 @@ AIC(model1, model2) # model 1 is better...without the interaction
 confint(model1, method = "Wald")
 ```
 
-```{r}
+```{r, eval=FALSE}
 df2 <- BigDays.sfdfT %>%
   filter(Mo > 2 & Mo < 7)
 
@@ -1073,21 +1090,24 @@ Observed versus prediction plot for ATE.
 # .scresid : standardized conditional residuals
 model1.df <- fortify(model1)
 model1.df2 <- model1.df %>%
-  filter(abs(.scresid) >= 1.7)
+  filter(abs(.scresid) >= 1.1)
+
+model1.df <- model1.df %>%
+    mutate(density = nT/HullArea)
 
 ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10(GroupDayCas + 1))) +
-        # geom_smooth(method = lm, color = "black", size = .4, se = FALSE) +
+        #geom_smooth(method = lm, color = "blue", size = 1.25, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
          geom_point(size = 5) + 
          geom_abline(slope = 1, size = 1.25) +
-         #geom_label_repel(aes(x = GroupDayTotalED/10^9, y = preATE/10^9, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
-         scale_x_log10(limits = c(1, 300), breaks = c(0, 10, 100, 300), labels = c(1, 10, "100", "500")) +
-         scale_y_log10(limits = c(1, 300), breaks = c(0, 10, 100, 300), labels = c(1, 10, "100", "500")) +
+         #geom_label_repel(aes(x = GroupDayTotalED/10^12, y = preATE/10^12, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
+         scale_x_log10(limits = c(1, 300), breaks = c(0,5, 15, 30, 75, 250), labels = c(0, 5, 15, 30, 75, 250)) +
+         scale_y_log10(limits = c(1, 75), breaks = c(0,5, 15, 30, 75), labels = c(0, 5, 15, 30, 75)) +
   ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
-**Figure 9: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
+**Figure 7: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
@@ -1096,18 +1116,18 @@ p1 <- ggplot(model1.df, aes(x = .scresid)) +
   ggtitle("A") +
   theme_minimal() + theme(text = element_text(size=25))
 
-p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^9, y = .scresid, color = factor(Mo))) +
+p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^12, y = .scresid, color = factor(Mo))) +
          geom_point(size = 5) +
          scale_x_log10() +
          scale_color_discrete(name = "Month") +
-  xlab("Predicted ATE [GW]") + ylab("Standardized Residual") +
+  xlab("Predicted ATE [TW]") + ylab("Standardized Residual") +
   ggtitle("B") +
   theme_minimal() + theme(text = element_text(size=26))
 grid.arrange(p1, p2, ncol = 1, widths = 2)
 
 #p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
 ```
-**Figure 8: Conditional standardized residuals fromt the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE.**
+**Figure 6: Conditional standardized residuals fromt the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE.**
 
 Outliers.
 ```{r}
@@ -1132,9 +1152,9 @@ ggplot(plt.BigDays.sfdfT, aes(x = x, y = y)) +
 
 Create a data frame of the over predicted big days. 
 ```{r}
-dates<- c("1995-04-19", "1999-01-22", "2000-05-18", "2004-05-24", "2010-10-26", "2011-04-19", "2011-04-28")
+dates<- c( "2011-04-19", "2014-02-20", "2017-04-03", "2003-04-24")
 overpreddays <- BigDays.sfdfT %>%
-  filter(as.character(cDate) %in% dates)    
+  filter(as.character(cDate) %in% dates)  
 ```
 
 **LOOK AT MAJOR OVER- AND UNDER- PREDICTED BIG DAYS: **
@@ -1144,7 +1164,7 @@ Create a data frame of the under predicted big days.
 # underpreddays <- BigDays.sfdfT %>%
 #  filter(cDate %in% overdays)    **Returning nothing
 
-dates <- c("1999-05-03", "1999-01-21", "2004-05-22", "2008-02-05", "2011-04-27")
+dates <- c("1999-05-03", "2011-04-27", "2011-04-26", "2004-05-22", "2004-11-23")
 underpreddays <- BigDays.sfdfT %>%
   filter(as.character(cDate) %in% dates) 
 ```
@@ -1167,24 +1187,20 @@ stateBorders <- st_transform(stateBorders,
 overpred <- st_transform(overpred, crs = st_crs(stateBorders))
 underpred <- st_transform(underpred, crs = st_crs(stateBorders))
 
-tm_shape(overpred) +
-  tm_polygons(alpha = 0, alpha.border = 0) +
-tm_shape(underpred) +
-  tm_polygons(alpha = 0, alpha.border = 0) + 
-tm_shape(stateBorders, is.master = FALSE) + 
+tm_shape(stateBorders) + 
   tm_borders(col = "black") +
   tm_compass(position = c("right", "bottom"), size = 5) + 
   tm_scale_bar(position = c("left", "bottom"), width = 0.5, size = 1.5) +
-  tm_layout(inner.margins = c(.2, .1, .1, .1)) +
+  tm_layout(inner.margins = c(.2, .05, .05, .05)) +
 tm_shape(counties.sf) +
   tm_borders(col = "gray50", alpha = .3) +
 tm_shape(overpred) +
   tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "blue") + 
   tm_fill(col = "blue") +
-tm_shape(underpred) +
+tm_shape(underpred, is.master = TRUE, projection = "merc") +
   tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "magenta") 
 ```
-**Figure 10: Areas defininng the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATE. **
+**Figure 7: Areas defininng the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATE. **
 
 ```{r}
 underden <- underpred %>%
@@ -1192,56 +1208,68 @@ underden <- underpred %>%
 overden <- overpred %>%
   mutate(density = nT/HullArea)
 
+#Convert from tornado/m2 to tornadoes/km2
 u <- underden$density *10**10
 mean(u)
 o <- overden$density *10**10
 mean(o)
 
-t.test(u,o)
+t.test(as.numeric(u),as.numeric(o))
 ```
 
+Get the average hull area in units of km^2
 ```{r}
-mean(underden$HullArea /10**10)
-#39.01043 [m^2]
+mean(underden$HullArea /10**10) 
+#52.82478 [km^2]
 mean(overden$HullArea /10**10)
-#30.04258 [m^2]
+#37.01303 [km^2]
 ```
 
 #order them by date 
-```{r}
-test<- rbind(overpredday2, overpredday3, underpredday1, underpredday2, underpredday3, overpredday4, overpredday1)
-```
 
+The most over predicted big days.
 ```{r}
-overdays <- c("2014-02-20", "1995-04-19", "2000-05-18", "2011-04-28")
 
-overpred1 <- Torn.sfT %>%
+overdates<- c( "2011-04-19", "2014-02-20", "2017-04-03", "2003-04-24")
+
+overpred1 <- BigDays.sfdfT %>%
+  filter(cDate == "2011-04-19")
+overpred2 <- BigDays.sfdfT %>%
   filter(cDate == "2014-02-20")
-overpred2 <- Torn.sfT%>%
-  filter(cDate == "1995-04-19")
-overpred3 <- Torn.sfT%>%
-  filter(cDate == "2000-05-18")
-overpred4 <- Torn.sfT %>%
-  filter(cDate == "2011-04-28")
+overpred3 <-  BigDays.sfdfT  %>%
+  filter(cDate == "2017-04-03")
+overpred4 <-  BigDays.sfdfT  %>%
+  filter(cDate == "2003-04-24")
 
 ```
 
+The most under predicted big days. 
 ```{r}
-underpred1 <- Torn.sfT %>%
-  filter(cDate == "2003-05-04")
-underpred2 <- Torn.sfT %>%
-  filter(cDate == "2008-02-05")
-underpred3 <- Torn.sfT %>%
+underpred1 <-  BigDays.sfdfT  %>%
+  filter(cDate == "1999-05-03")
+underpred2 <- BigDays.sfdfT  %>%
+  filter(cDate == "2011-04-26")
+underpred3 <-  BigDays.sfdfT  %>%
   filter(cDate == "2011-04-27")
-dat <- rbind(underpred1,underpred2,underpred3,overpred1,overpred2,overpred3,overpred4)
-dat <- rbind(overpred2, overpred3, underpred1, underpred2, underpred3, overpred4, overpred1)
+underpred4 <-  BigDays.sfdfT  %>%
+  filter(cDate == "2004-05-22")
+underpred5 <-  BigDays.sfdfT  %>%
+  filter(cDate == "2004-11-23")
+
+dat <- rbind(underpred1,underpred2,underpred3, underpred4,underpred5,overpred1,overpred2,overpred3,overpred4)
 ```
 
+Order by Big Days
 ```{r}
-work <- c("over", "over", "under", "under", "under", "over", "over")
+test <- rbind(underpred1, overpred4, underpred4, underpred5, overpred1, underpred2, underpred3, overpred2, overpred3)
+```
+
+Plot the most over and under big days. 
+```{r}
+work <- c("under", "over", "under", "under", "over", "under", "under", "over", "over")
 test <- cbind(test, work)
 
-tm_shape(stateBorders) + 
+tm_shape(stateBorders, projection = "merc") + 
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE) +
   tm_shape(dat) +
