@@ -526,6 +526,10 @@ dfnD <- as.data.frame(Groups.sfdfT) %>%
 table(dfnD$nD)
 (151-46)/151 * 100 
 
+dfnD <- as.data.frame(Groups.sfdfT) %>%
+  arrange(desc(Year))
+table(dfnD$Year)
+
 as.data.frame(Groups.sfdfT) %>%
   group_by(nD) %>%
   summarize(tot_events = n(),
@@ -1045,7 +1049,13 @@ model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) +
              data = BigDays.sfdfT)
 summary(model2)
 
-AIC(model1, model2) # model 1 is better...without the interaction
+model3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
+                  maxCAPE2 + maxBS2 +  maxHLCY,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(model3)
+
+AIC(model1, model2, model3) # model 1 is better...without the interaction
 confint(model1, method = "Wald")
 ```
 
@@ -1081,9 +1091,41 @@ xtable(x$coefficients, digits = 3)
 
 Observed versus predicted.
 ```{r}
-BigDays.sfdfT$preATE <- exp(predict(model1))
+BigDays.sfdfT$preATE <- exp(predict(model1))/(10^12)
 cor(BigDays.sfdfT$preATE, BigDays.sfdfT$GroupDayTotalED)
 ```
+
+Make a prediction grid 
+```{r}
+ggplot(BigDays.sfdfT, aes(x = maxBS, y = maxCAPE, color = preATE)) + 
+  scale_color_continuous(low = 'green', high = 'red', breaks = c(.01, .1, 1, 10, 100, 1000, 10000), labels = c(".01", ".1", "1", "10", "100", "1000", "10000")) +
+  geom_point() + 
+  scale_x_log10(breaks = c(.01, .1, 1, 10, 100), 
+                labels = c(".01", ".1", "1", "10", "100")) + 
+  scale_y_log10(breaks = c(.01, .1, 1, 10, 100, 1000, 10000),
+                labels = c(".01", ".1", "1", "10", "100", "1000", "10000")) +
+  xlab(expression(paste("Bulk Shear [m/s]"))) +
+  ylab("Maximum CAPE [J/kg]") +
+  labs(color = "Predicted\nATE") +
+  theme_bw() +
+  theme(legend.position = c(.01, .99),
+        legend.justification = c(.01, .99))
+```
+Bulk Shear: 
+min: 11
+max: 45
+
+CAPE: 
+min: 60
+max: 5120
+
+preATE
+min: 0.27
+max: 38
+
+ATE: 
+min: 0.005
+max: 220
 
 Observed versus prediction plot for ATE.
 ```{r}
@@ -1102,8 +1144,9 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10
          geom_point(size = 5) + 
          geom_abline(slope = 1, size = 1.25) +
          #geom_label_repel(aes(x = GroupDayTotalED/10^12, y = preATE/10^12, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
-         scale_x_log10(limits = c(1, 300), breaks = c(0,5, 15, 30, 75, 250), labels = c(0, 5, 15, 30, 75, 250)) +
-         scale_y_log10(limits = c(1, 75), breaks = c(0,5, 15, 30, 75), labels = c(0, 5, 15, 30, 75)) +
+         scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
+         scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +# breaks = c(0, 15, 30, 75, 250), labels = c(0, 5, 15, 30, 75, 250)) +
+         #scale_y_log10(limits = c(1, 75), breaks = c(0,5, 15, 30, 75), labels = c(0, 5, 15, 30, 75)) +
   ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
