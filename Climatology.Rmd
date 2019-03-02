@@ -320,6 +320,9 @@ BigDays.sfdfT %>%
   group_by(NARRZtime) %>%
   summarize(count = n())
 ```
+** Table 3: Total number of big days associated with each Z time. **
+
+
 
 Create a downloadable string of information for the varying NARR times. 
 ```{r, eval = FALSE}
@@ -535,7 +538,7 @@ as.data.frame(Groups.sfdfT) %>%
   summarize(tot_events = n(),
             tot_torn = sum(nT))
 ```
-
+** Table 1: The total number of large groups and tornadoes by duration. **
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
@@ -609,7 +612,7 @@ tm_shape(longestdaytorns, title = "Day") +
             legend.frame = FALSE, 
             legend.text.size = 1.5, legend.width = -0.35)
 ```
-**Figure 1: The September 4 – 8, 2004 event has the duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day.**  
+**Figure 1: The September 4 – 8, 2004 event has the longest duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day. **  
   
 ##################
 # Stats and Maps #
@@ -621,7 +624,7 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-
+** Table 2: The top ten big days in the largest tornado groups. ATE is the accumulated tornado energy on a big day. **
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -693,7 +696,7 @@ tm_shape(May30tornadoes, col = "Hour") +
 tm_shape(May30centroid) +
   tm_symbols(size = 1.25, col = "black", shape = 24) 
 ```
-** Figure 2: The May 30, 2004 big tornado day is characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull). **
+** Figure 2: May 30, 2004, is a big tornado day characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull).**
 
 Histogram of the values for the environmental variables.
 ```{r}
@@ -710,7 +713,16 @@ lines(stormmotion, col = "red", lwd = 3)
 legend(-8, 0.7, legend = c("CAPE/1000", "Helicity/10", "CIN/10", "Bulk Shear/10", "Storm Motion/10"), col = c("blue", "darkgreen", "hotpink", "orange", "red"), lty = 1:5, cex = 0.8)
 ```
 
+```{r}
+BigDays.sfdfT %>%
+  top_n(n = 3, wt = -ATE) %>%
+  arrange(desc(ATE))
 
+BigDays.sfdfT %>%
+  top_n(n = 3, wt = -ATE) %>%
+  arrange(desc(ATE))
+```
+**Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. **
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
@@ -888,7 +900,7 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-
+** Table 5: Seasonal variation in ATE (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. **
 Time series of annual number of big days in large groups and the annual average ATE across those days.
 ```{r}
 BigDays.sfdfT %>%
@@ -912,7 +924,7 @@ ggplot(., aes(x = Year, y = nBD)) +
         legend.background = element_rect(size=0.5, linetype="solid", 
                                   colour ="gray10"))
 ```
-**Figure 5: Number of big days by year, 1994--2017. Points are sized by annual average ATE.**
+**Figure 5: Number of big days by year, 1994 – 2017. Points are sized and colored by annual average ATE.**
 
 How many big days have an ATE > 30 TW? 
 ```{r}
@@ -1088,6 +1100,7 @@ Table of coefficients.
 x <- summary(model1)
 xtable(x$coefficients, digits = 3)
 ```
+**Table 6: Coefficient estimates from a regression model of ATE onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)**
 
 Observed versus predicted.
 ```{r}
@@ -1150,7 +1163,7 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10
   ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
-**Figure 7: Actual versus predicted accumulated tornado energy (ATE) for the $n$ = 154 big tornado days. The predicted are based on the regression model. The color shading from dark to light indicates increasing number of casualties.**
+**Figure 7: Actual versus predicted accumulated tornado energy (ATE) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
@@ -1170,7 +1183,7 @@ grid.arrange(p1, p2, ncol = 1, widths = 2)
 
 #p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
 ```
-**Figure 6: Conditional standardized residuals fromt the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE.**
+**Figure 6: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE. **
 
 Outliers.
 ```{r}
@@ -1301,6 +1314,7 @@ underpred5 <-  BigDays.sfdfT  %>%
 
 dat <- rbind(underpred1,underpred2,underpred3, underpred4,underpred5,overpred1,overpred2,overpred3,overpred4)
 ```
+** Table 7: The most over- and under-predicted big days. The actual ATE was calculated and the predicted is determined by the output of our model. **
 
 Order by Big Days
 ```{r}
