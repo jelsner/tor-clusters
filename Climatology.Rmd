@@ -1053,6 +1053,7 @@ model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) +
                   maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2 ,
              weights = nT, 
              data = BigDays.sfdfT)
+
 summary(model1)
 
 model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) +
@@ -1098,11 +1099,11 @@ confint(model2, method = "Wald")
 Create a prediction grid. 
 ```{r}
 library(reshape2)
-pgrid <- expand.grid(maxCAPE2 = seq(0:5000),
-                     maxBS2 = seq(0:45), 
+pgrid <- expand.grid(maxCAPE2 = seq(.1, 5.1, length = 100),
+                     maxBS2 = seq(1.2, 4.5, length = 100),
                      Year = 2017, 
-                     minCIN2 = -1.9,
-                     maxHLCY2 = 3.96, 
+                     minCIN2 = -2,
+                     maxHLCY2 = 4, 
                      Mo = 4)
 pgrid$pre <- predict(model1, newdata = pgrid, type = "response")
 
@@ -1110,8 +1111,10 @@ pgridL = melt(pgrid, id.vars = c("maxCAPE2", "maxBS2"), measure.vars = "pre")
 
 #x<- matrix(pre, nrow = 5001, byrow = FALSE)
 
-ggplot(pgrid, aes(x = maxCAPE2, y = maxBS2, z = pre)) +
-  geom_raster(data = pgrid, aes(fill = pre), show.legend = FALSE)
+ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
+  geom_raster(show.legend = TRUE) +
+  geom_contour(aes(z = value), color = "green")
+
 ```
 
 
