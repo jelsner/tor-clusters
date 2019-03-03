@@ -1113,7 +1113,6 @@ pgridL = melt(pgrid, id.vars = c("maxCAPE2", "maxBS2"), measure.vars = "pre")
 #x<- matrix(pre, nrow = 5001, byrow = FALSE)
 e <- c(12, 12.5, 13, 13.5)
 
-#<<<<<<< HEAD
 ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
   geom_tile(show.legend = TRUE) +
  # geom_contour(aes(z = value), color = "green") + 
@@ -1125,13 +1124,11 @@ ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
   xlab("CAPE [J/kg]") + 
   ylab("Bulk Shear [m/s]") +
   labs(fill = "ATE [TW]")
-#=======
+
 #e <- c(12,  12.5, 13, 13.5)
 #ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
  # geom_raster(show.legend = TRUE) +
  # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
-
-#>>>>>>> b15f464ea3fbfdd31d3527bff0239a4b7d246731
 ```
 
 Table of coefficients.
