@@ -1069,7 +1069,14 @@ model3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) +
              data = BigDays.sfdfT)
 summary(model3)
 
-AIC(model1, model2, model3) # model 1 is better...without the interaction
+model4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
+                  maxCAPE2 * maxBS2 +  maxHLCY2 + minCIN2 ,
+             weights = nT, 
+             data = BigDays.sfdfT)
+
+summary(model4)
+
+AIC(model1, model2, model3, model4) # model 1 is better...without the interaction
 confint(model1, method = "Wald")
 ```
 
@@ -1097,6 +1104,32 @@ AIC(model2)
 confint(model2, method = "Wald")
 ```
 
+Get specific values on the prediction of ATE plot. 
+
+```{r}
+#4000 CAPE and 40 BS
+mpred1 <- exp(predict(model1, data.frame(maxCAPE2 = 4, maxBS2 = 4, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#24.93 
+
+#250 CAPE and 25 BS
+mpred2 <- exp(predict(model1, data.frame(maxCAPE2 = 0.25, maxBS2 = 2.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#2.82
+
+#0 CAPE and 0 BS
+exp(predict(model1, data.frame(maxCAPE2 = 0, maxBS2 = 0, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#0.35
+
+#3000 CAPE and 15 BS
+mpred3 <- exp(predict(model1, data.frame(maxCAPE2 = 3, maxBS2 = 1.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#2.56
+
+mpred1 <- c(4000/1000, 40/10, 30.85)
+mpred2 <- c(250/1000, 25/10, 28.67)
+mpred3 <- c(3000/1000, 15/10, 28.57)
+test <- as.data.frame(rbind(mpred1, mpred2, mpred3))
+colnames(test) <- c("maxCAPE2", "maxBS2", "value")
+```
+
 Create a prediction grid. 
 ```{r}
 library(reshape2)
@@ -1114,7 +1147,7 @@ pgridL = melt(pgrid, id.vars = c("maxCAPE2", "maxBS2"), measure.vars = "pre")
 e <- c(12, 12.5, 13, 13.5)
 
 ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
-  geom_tile(show.legend = TRUE) +
+  geom_tile( show.legend = TRUE) +
  # geom_contour(aes(z = value), color = "green") + 
   scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32)) +
   theme_bw() +
@@ -1123,13 +1156,13 @@ ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
                                   colour ="gray10")) +
   xlab("CAPE [J/kg]") + 
   ylab("Bulk Shear [m/s]") +
-  labs(fill = "ATE [TW]")
-
+  labs(fill = "ATE [TW]") + geom_point(data = test, size = 4) 
 #e <- c(12,  12.5, 13, 13.5)
 #ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
  # geom_raster(show.legend = TRUE) +
  # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
 ```
+**Figure 7: Predictions of ATE across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  **
 
 Table of coefficients.
 ```{r}
@@ -1170,11 +1203,13 @@ model1.df2 <- model1.df %>%
 model1.df <- model1.df %>%
     mutate(density = nT/HullArea)
 
+model1.df <- model1.df[order(model1.df$GroupDayCas),]
+
 ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10(GroupDayCas + 1))) +
         #geom_smooth(method = lm, color = "blue", size = 1.25, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
-         geom_point(size = 8) + 
+         geom_point(size = 6) + 
          geom_abline(slope = 1, size = 1.25) +
          #geom_label_repel(aes(x = GroupDayTotalED/10^12, y = preATE/10^12, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
          scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
@@ -1183,7 +1218,7 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10
   ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
-**Figure 7: Actual versus predicted accumulated tornado energy (ATE) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
+**Figure 8: Actual versus predicted accumulated tornado energy (ATE) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
