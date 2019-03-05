@@ -917,7 +917,7 @@ ggplot(., aes(x = Year, y = nBD)) +
     guides(fill = guide_colourbar(reverse=TRUE) ) +
     scale_x_continuous(breaks = seq(1995, 2015, 5)) +
     scale_y_continuous(breaks = seq(5, 20, 5)) +
-    labs(size = "ATE [TW]", color = "ATE [TW]") +
+    labs(size = "ATP [TW]", color = "ATP [TW]") +
     xlab("Year") + ylab("Number of Big Days") +
     theme_minimal() +
   theme(text = element_text(size=20)) +
@@ -1153,7 +1153,7 @@ ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
         legend.background = element_rect(size=0.5)) +
   xlab("CAPE [J/kg]") + 
   ylab("Bulk Shear [m/s]") +
-  labs(fill = "ATE [TW]") + geom_point(data = test, size = 4) 
+  labs(fill = "ATP [TW]") + geom_point(data = test, size = 4) 
 #e <- c(12,  12.5, 13, 13.5)
 #ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
  # geom_raster(show.legend = TRUE) +
@@ -1212,7 +1212,7 @@ ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10
          scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
          scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +# breaks = c(0, 15, 30, 75, 250), labels = c(0, 5, 15, 30, 75, 250)) +
          #scale_y_log10(limits = c(1, 75), breaks = c(0,5, 15, 30, 75), labels = c(0, 5, 15, 30, 75)) +
-  ylab("Predicted ATE [TW]") + xlab("ATE [TW]") +
+  ylab("Predicted ATP [TW]") + xlab("ATP [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
 **Figure 8: Actual versus predicted accumulated tornado energy (ATE) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
@@ -1228,7 +1228,7 @@ p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^12, y = .scresid, color = factor
          geom_point(size = 5) +
          scale_x_log10() +
          scale_color_discrete(name = "Month") +
-  xlab("Predicted ATE [TW]") + ylab("Standardized Residual") +
+  xlab("Predicted ATP [TW]") + ylab("Standardized Residual") +
   ggtitle("B") +
   theme_minimal() + theme(text = element_text(size=26))
 grid.arrange(p1, p2, ncol = 1, widths = 2)
