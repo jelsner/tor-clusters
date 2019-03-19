@@ -1,5 +1,5 @@
 ---
-title: "Quantifying the relationships between environmental factors and accumulated tornado energy on the most prolific days in the largest ``outbreaks"
+title: "Quantifying relationships between environmental factors and accumulated tornado power on the most prolific days in the largest ``outbreaks"
 author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
@@ -71,7 +71,7 @@ max(All_Tornadoes$yr)
 
 The geometry type is `POINT`. Each tornado is represented as a single point location geometry (start location). 
 
-Add energy dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3-sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al. (2017). The model is
+Add power dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3-sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al. (2017). The model is
 $$
 E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},
 $$
@@ -260,7 +260,7 @@ BigDays.sfdfT <- All_Tornadoes %>%
          Mo = month(cDate),
          Month = format(cDate, "%m"), # this is needed to preserve the leading zeros
          Day = format(cDate, "%d"), 
-         ATE = GroupDayTotalED/10^12)                                                                                      
+         ATP = GroupDayTotalED/10^12)                                                                                      
 dim(BigDays.sfdfT)
 ```
 There are 212 big days in large groups. These will be used for further analysis and modeling.
@@ -475,7 +475,7 @@ dim(BigDays.sfdfT)
 ## Group Statistics ##
 ######################
 
-Make tables: Top 10 tornado groups by number of tornadoes, energy dissipation, and duration.
+Make tables: Top 10 tornado groups by number of tornadoes, power dissipation, and duration.
 ```{r}
 Groups.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
@@ -494,7 +494,7 @@ Groups.sfdfT %>%
   arrange(desc(nD))
 ```
 
-Map the locations (start points) of the top 25 tornado groups by energy dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
+Map the locations (start points) of the top 25 tornado groups by power dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
 ```{r}
 Top25BigDays <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 25, wt = GroupTotalED) %>%
@@ -624,7 +624,7 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-** Table 2: The top ten big days in the largest tornado groups. ATE is the accumulated tornado energy on a big day. **
+** Table 2: The top ten big days in the largest tornado groups. ATP is the accumulated tornado power on a big day. **
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -715,12 +715,12 @@ legend(-8, 0.7, legend = c("CAPE/1000", "Helicity/10", "CIN/10", "Bulk Shear/10"
 
 ```{r}
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATE) %>%
-  arrange(desc(ATE))
+  top_n(n = 3, wt = -ATP) %>%
+  arrange(desc(ATP))
 
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATE) %>%
-  arrange(desc(ATE))
+  top_n(n = 3, wt = -ATP) %>%
+  arrange(desc(ATP))
 ```
 **Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. **
 
@@ -855,7 +855,7 @@ ggplot(BigDays.sfdfT, aes(y = Year)) +
              color = "gray30", 
              size = .05) +
   scale_size(range = c(5, 9), 
-             name = " ATE [GW]", 
+             name = " ATP [GW]", 
              labels = c("10", "100", "1000", "10,000", "100,000"), 
              breaks = c(10, 11, 12, 13, 14)) +
   scale_x_date(date_breaks = "months", 
@@ -868,27 +868,27 @@ ggplot(BigDays.sfdfT, aes(y = Year)) +
   theme(text = element_text(size=30), legend.position = "bottom", legend.background = element_rect(size=0.5, linetype="solid", 
                                   colour ="gray10"))
 ```
-**Accumulated tornado energy (ATE) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
+**Accumulated tornado power (ATP) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
 
 ```{r, eval = FALSE}
 BigDays.sfdfT %>%
-  #elect(cDate, GroupDayTotalED, ATE) %>%
+  #elect(cDate, GroupDayTotalED, ATP) %>%
   top_n(n = 10) %>%
-  arrange(desc(ATE))
+  arrange(desc(ATP))
 ```
-Use a Spearman's correlation to quantify the relationship between ATE and the number of tornadoes.  
+Use a Spearman's correlation to quantify the relationship between ATP and the number of tornadoes.  
 
 ```{r}
-cor.test(x = BigDays.sfdfT$ATE, 
+cor.test(x = BigDays.sfdfT$ATP, 
          y = BigDays.sfdfT$nT, 
          method = 'spearman')
 ```
-Spearman's rank correlation between ATE and number of tornadoes is .633
+Spearman's rank correlation between ATP and number of tornadoes is .633
 
 ```{r}
 BigDays.sfdfT %>%
   group_by(Month) %>%
-  summarize(avgATE = mean(ATE),
+  summarize(avgATP = mean(ATP),
             nT = sum(nT),
             nBD = n())
 
@@ -900,15 +900,15 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-** Table 5: Seasonal variation in ATE (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. **
-Time series of annual number of big days in large groups and the annual average ATE across those days.
+** Table 5: Seasonal variation in ATP (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. **
+Time series of annual number of big days in large groups and the annual average ATP across those days.
 ```{r}
 BigDays.sfdfT %>%
   group_by(Year) %>%
   summarize(nBD = n(),
-            avgATE = mean(ATE)) %>%
+            avgATP = mean(ATP)) %>%
 ggplot(., aes(x = Year, y = nBD)) +
-    geom_point(aes(size = avgATE, color = avgATE), 
+    geom_point(aes(size = avgATP, color = avgATP), 
                alpha = .9) +
     scale_size_continuous(range = c(0, 10)) +
     scale_color_gradient(low = "yellow", high = "red", guide = "legend") + 
@@ -923,43 +923,43 @@ ggplot(., aes(x = Year, y = nBD)) +
   theme(text = element_text(size=20)) +
   theme(legend.position="bottom")
 ```
-**Figure 5: Number of big days by year, 1994 – 2017. Points are sized and colored by annual average ATE.**
+**Figure 5: Number of big days by year, 1994 – 2017. Points are sized and colored by annual average ATP.**
 
-How many big days have an ATE > 30 TW? 
+How many big days have an ATP > 30 TW? 
 ```{r}
-BigDayATE <- BigDays.sfdfT %>%
-  filter(ATE >= 10)
+BigDayATP <- BigDays.sfdfT %>%
+  filter(ATP >= 10)
 
 48/212 *100
 ```
-23% of our big days have ATE greater than 10 TW. 
+23% of our big days have ATP greater than 10 TW. 
 
-First calculate the mean and variance of ATE
+First calculate the mean and variance of ATP
 ```{r}
 library(fitdistrplus)
-ATE_TW <- BigDays.sfdfT$ATE
+ATP_TW <- BigDays.sfdfT$ATP
 
-mean(ATE_TW) # 7.8
-var(ATE_TW) # 309
+mean(ATP_TW) # 7.8
+var(ATP_TW) # 309
 ```
 Mean and varaince
 
 First a plot visualizing the data together with some possible theoretical distributions in a skewness-kurtosis space:
 ``` {r}
-hist(ATE_TW)
-hist(log(ATE_TW)) 
+hist(ATP_TW)
+hist(log(ATP_TW)) 
 
-descdist(ATE_TW)
+descdist(ATP_TW)
 ```
 
 ```{r}
-gammafit  <-  fitdistrplus::fitdist(ATE_TW, "gamma")
-weibullfit  <-  fitdistrplus::fitdist(ATE_TW, "weibull")
-lnormfit  <-  fitdistrplus::fitdist(ATE_TW, "lnorm")  # not supported?
+gammafit  <-  fitdistrplus::fitdist(ATP_TW, "gamma")
+weibullfit  <-  fitdistrplus::fitdist(ATP_TW, "weibull")
+lnormfit  <-  fitdistrplus::fitdist(ATP_TW, "lnorm")  # not supported?
 
 library(flexsurv) # on CRAN
 
-gengammafit  <-  fitdistrplus::fitdist(ATE_TW, "gengamma",
+gengammafit  <-  fitdistrplus::fitdist(ATP_TW, "gengamma",
                                        start=function(d) list(mu=mean(d),
                                                               sigma=sd(d), Q = 0))
 
@@ -968,16 +968,16 @@ qqcomp(list(gammafit, weibullfit, lnormfit, gengammafit),
 ```
 ** Lnorm and gamma fit the best ** 
 
-Another ATE_TW
+Another ATP_TW
 ```{r}
 library(car)
-qqPlot(log(ATE_TW)) ## cannot assume normality because it is outside the blue line. 
+qqPlot(log(ATP_TW)) ## cannot assume normality because it is outside the blue line. 
 
-qqPlot(ATE_TW, distribution = "gamma", shape = 1)
+qqPlot(ATP_TW, distribution = "gamma", shape = 1)
 ```
 Because the lines do not fall inside the blue line, you cannot assume normality using the log scale. (http://www.sthda.com/english/wiki/qq-plots-quantile-quantile-plots-r-base-graphs)
 
-Density plot of ATE.
+Density plot of ATP.
 ```{r}
 labels <- c("10", "100", "1000","10000", "100000")
 ggplot(BigDays.sfdfT, aes(log(GroupDayTotalED))) +
@@ -988,7 +988,7 @@ ggplot(BigDays.sfdfT, aes(log(GroupDayTotalED))) +
   theme_minimal() +
   theme(text = element_text(size=20))
 ```
-** Histogram of per big day ATE, 1994--2017. The horizontal axis is on a log scale.**
+** Histogram of per big day ATP, 1994--2017. The horizontal axis is on a log scale.**
 
 #################################
 ## Linear Mixed Effects Models ##
@@ -1005,7 +1005,7 @@ ggplot(., aes(x = Year, y = mEV)) +
   geom_smooth(method = lm)
 ```
 
-Random effects. Summarize the average ATE and number of tornadoes by month.
+Random effects. Summarize the average ATP and number of tornadoes by month.
 ```{r}
 BigDays.sfdfT %>%
   group_by(Mo) %>%
@@ -1046,7 +1046,7 @@ m6 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + minCIN2,
 summary(m6) #SIG max...not avg 
 ```
 
-Fit the best model for log(ATE):
+Fit the best model for log(ATP):
 ```{r}
 model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
                   maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2 ,
@@ -1102,7 +1102,7 @@ AIC(model2)
 confint(model2, method = "Wald")
 ```
 
-Get specific values on the prediction of ATE plot. 
+Get specific values on the prediction of ATP plot. 
 
 ```{r}
 #4000 CAPE and 40 BS
@@ -1159,19 +1159,19 @@ ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
  # geom_raster(show.legend = TRUE) +
  # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
 ```
-**Figure 7: Predictions of ATE across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  **
+**Figure 7: Predictions of ATP across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  **
 
 Table of coefficients.
 ```{r}
 x <- summary(model1)
 xtable(x$coefficients, digits = 3)
 ```
-**Table 6: Coefficient estimates from a regression model of ATE onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)**
+**Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)**
 
 Observed versus predicted.
 ```{r}
-BigDays.sfdfT$preATE <- exp(predict(model1))
-cor(BigDays.sfdfT$preATE, BigDays.sfdfT$GroupDayTotalED)
+BigDays.sfdfT$preATP <- exp(predict(model1))
+cor(BigDays.sfdfT$preATP, BigDays.sfdfT$GroupDayTotalED)
 ```
 
 Bulk Shear: 
@@ -1182,15 +1182,15 @@ CAPE:
 min: 60
 max: 5120
 
-preATE
+preATP
 min: 0.27
 max: 38
 
-ATE: 
+ATP: 
 min: 0.005
 max: 220
 
-Observed versus prediction plot for ATE.
+Observed versus prediction plot for ATP.
 ```{r}
 # .scresid : standardized conditional residuals
 model1.df <- fortify(model1)
@@ -1202,20 +1202,20 @@ model1.df <- model1.df %>%
 
 model1.df <- model1.df[order(model1.df$GroupDayCas),]
 
-ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATE/10^12, color = log10(GroupDayCas + 1))) +
+ggplot(model1.df, aes(x = GroupDayTotalED/10^12, y = preATP/10^12, color = log10(GroupDayCas + 1))) +
         #geom_smooth(method = lm, color = "blue", size = 1.25, se = FALSE) +
 #         scale_color_viridis_c(guide = FALSE, direction = -1) +
          scale_color_continuous(guide = FALSE) +
          geom_point(size = 6) + 
          geom_abline(slope = 1, size = 1.25) +
-         #geom_label_repel(aes(x = GroupDayTotalED/10^12, y = preATE/10^12, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
+         #geom_label_repel(aes(x = GroupDayTotalED/10^12, y = preATP/10^12, label = as.character(cDate)), color = "black", data = model1.df2, size = 6) +
          scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
          scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +# breaks = c(0, 15, 30, 75, 250), labels = c(0, 5, 15, 30, 75, 250)) +
          #scale_y_log10(limits = c(1, 75), breaks = c(0,5, 15, 30, 75), labels = c(0, 5, 15, 30, 75)) +
   ylab("Predicted ATP [TW]") + xlab("ATP [TW]") +
   theme_minimal() + theme(text = element_text(size=30))
 ```
-**Figure 8: Actual versus predicted accumulated tornado energy (ATE) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
+**Figure 8: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
@@ -1235,13 +1235,13 @@ grid.arrange(p1, p2, ncol = 1, widths = 2)
 
 #p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
 ```
-**Figure 6: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATE. **
+**Figure 6: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP. **
 
 Outliers.
 ```{r}
 fortify(model1) %>%
   arrange(desc(.scresid)) %>%
-  dplyr::select(groupNumber, cDate, nT, GroupDayTotalED, GroupDayCas, GroupDayFat, mCAPE, mCIN, mBS, preATE, .fitted, .resid, .scresid)
+  dplyr::select(groupNumber, cDate, nT, GroupDayTotalED, GroupDayCas, GroupDayFat, mCAPE, mCIN, mBS, preATP, .fitted, .resid, .scresid)
 
 model1.df <- fortify(model1)
 ggplot(model1.df, aes(.scresid)) +
@@ -1308,7 +1308,7 @@ tm_shape(overpred) +
 tm_shape(underpred, is.master = TRUE, projection = "merc") +
   tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "magenta") 
 ```
-**Figure 7: Areas defininng the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATE. **
+**Figure 7: Areas defininng the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATP. **
 
 ```{r}
 underden <- underpred %>%
@@ -1366,7 +1366,7 @@ underpred5 <-  BigDays.sfdfT  %>%
 
 dat <- rbind(underpred1,underpred2,underpred3, underpred4,underpred5,overpred1,overpred2,overpred3,overpred4)
 ```
-** Table 7: The most over- and under-predicted big days. The actual ATE was calculated and the predicted is determined by the output of our model. **
+** Table 7: The most over- and under-predicted big days. The actual ATP was calculated and the predicted is determined by the output of our model. **
 
 Order by Big Days
 ```{r}
