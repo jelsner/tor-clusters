@@ -715,14 +715,116 @@ legend(-8, 0.7, legend = c("CAPE/1000", "Helicity/10", "CIN/10", "Bulk Shear/10"
 
 ```{r}
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATP) %>%
-  arrange(desc(ATP))
+  top_n(n = 3, wt = -ATE) %>%
+  arrange(desc(ATE))
 
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATP) %>%
-  arrange(desc(ATP))
+  top_n(n = 3, wt = -ATE) %>%
+  arrange(desc(ATE))
 ```
 **Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. **
+
+```{r}
+BigDays.sfdfT <- BigDays.sfdfT %>%
+ mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
+```
+
+April 27, 2011 Big Day
+```{r}
+April27 <- BigDays.sfdfT %>%
+  filter(ID == "201104274630")
+April27 <- st_convex_hull(April27)
+
+April27centroid <- groupDayCentroids.sfdfT %>%
+  filter(ID == "201104274630")
+
+April27tornadoes <- BigDayTornadoes %>% 
+  filter(ID == "201104274630")
+```
+
+Plot the CAPE, HLCY, and CIN for the April 27, 2011 Big Day. First, read in the raster. 
+```{r}
+ rb <- brick(paste0("/Users/zoeschroder/Desktop/Projects/Tor-clusters/merged_AWIP32.20110427/merged_AWIP32.2011042709")) #<-- this is for varying NARR times
+  CAPE <- raster(rb, layer = 375)
+  HLCY <- raster(rb, layer = 323)
+  CIN <- raster(rb, layer = 376)
+```
+
+Project and transform the raster. Extract the environmental variables to the hull of the big day. 
+```{r}
+capeLL <- projectRaster(CAPE, crs = "+init=epsg:4326")
+cinLL <- projectRaster(CIN, crs = "+init=epsg:4326")
+hlcyLL <- projectRaster(HLCY, crs = "+init=epsg:4326")
+
+sfdfTll <- st_transform(April27, crs = "+init=epsg:4326")
+r <- raster(extent(sfdfTll), resolution = res(capeLL))
+
+nT.r <- rasterize(sfdfTll, r, fun = 'first')
+
+cape.r <- projectRaster(capeLL, nT.r)
+cin.r <- projectRaster(cinLL, nT.r)
+hlcy.r <- projectRaster(hlcyLL, nT.r)
+
+x <- crop(capeLL, extent(nT.r))
+y <- mask(x, nT.r)
+```
+
+Plot the environmental variables. 
+```{r}
+counties <- us_counties()
+states <- us_states()
+
+tm_shape(cape.r) +
+  tm_raster(title = "CAPE (J/kg)", n = 5) +
+  tm_format("World", legend.position = c("left", "top"),
+                   attr.position = c("left", "top"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, .05, .05, .05),
+                    legend.text.size = 1.25, legend.width = -0.3, legend.title.size=2, legend.bg.color = "white") +
+tm_shape(counties) +
+  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.5, size = 1.5, position = c("right", "bottom")) +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(April27, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+tm_shape(April27centroid) +
+  tm_symbols(size = 1.25, col = "black", shape = 24) 
+
+tm_shape(hlcy.r) +
+  tm_raster(title = "HLCY (m^2/s^2)", n = 5) +
+  tm_format("World", legend.position = c("left", "top"),
+                   attr.position = c("left", "top"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, .05, .05, .05),
+                    legend.text.size = 1.25, legend.width = -0.3, legend.title.size=2, legend.bg.color = "white") +
+tm_shape(counties) +
+  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.5, size = 1.5, position = c("right", "bottom")) +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(April27, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+tm_shape(April27centroid) +
+  tm_symbols(size = 1.25, col = "black", shape = 24) 
+
+tm_shape(cin.r) +
+  tm_raster(title = "CIN (J/kg)", n = 5) +
+  tm_format("World", legend.position = c("left", "top"),
+                   attr.position = c("left", "top"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, .05, .05, .05),
+                    legend.text.size = 1.25, legend.width = -0.3, legend.title.size=2, legend.bg.color = "white") +
+tm_shape(counties) +
+  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.5, size = 1.5, position = c("right", "bottom")) +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(April27, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+tm_shape(April27centroid) +
+  tm_symbols(size = 1.25, col = "black", shape = 24) 
+```
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
