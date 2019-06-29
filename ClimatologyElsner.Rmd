@@ -1,5 +1,5 @@
 ---
-title: "Quantifying the relationships between environmental factors and accumulated tornado energy on the most prolific days in the largest ``outbreaks"
+title: "Quantifying the relationships between environmental factors and accumulated tornado energy on the most prolific days in the largest `outbreaks'
 author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
+Research to be submitted to the **International Journal of Climatology**
 
 ## Part 1: Tornado data
 
@@ -41,7 +41,7 @@ Tor.sfdf <- Tor.sfdf %>%
          mag = ifelse(mag == -9 & len > 5, 1, mag))
 ```
 
-Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
+Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight). CAREFUL with Sys.timezone() as this is different depending on where you run the code!
 ```{r}
 Tor.sfdf <- Tor.sfdf %>%
   mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
@@ -49,7 +49,8 @@ Tor.sfdf <- Tor.sfdf %>%
          Hour = hour(DateTime),
          Year = year(DateTime),
          cDateTime = DateTime - as.difftime(6, unit = "hours"),
-         cDate = as.Date(as_datetime(ifelse(Hour < 6, (DateTime - 86400), cDateTime), tz = Sys.timezone())),
+#         cDate = as.Date(as_datetime(ifelse(Hour < 6, (DateTime - 86400), cDateTime), tz = Sys.timezone())),
+         cDate = as.Date(as_datetime(ifelse(Hour < 6, (DateTime - 86400), cDateTime), tz = "EST")),
          Length = len * 1609.34,
          Length = ifelse(Length == 0, min(Length[Length > 0]), Length), #takes care of zero length
          Width = wid * .9144,
@@ -93,7 +94,7 @@ space <- st_coordinates(Tor.sfdfT)
 time <- Tor.sfdf$DateTime
 ```
 
-Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 10 so that the values are commensurate with the time 'distance' based on the assumption of 10 meters every second for an average speed of tornado-generating storms. 
+Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 15 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters every second for an average speed of tornado-generating storms. 
 
 Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
 ```{r}
@@ -185,7 +186,7 @@ sfdf <- Tor.sfdfT %>%
    mutate(EF = factor(mag))
 
 sfdf2 <- left_join(sfdf, df, by = "groupNumber") %>%
-  arrange(GroupTotalED, EF)
+  arrange(GroupTotalED, EF) 
 ```
 
 Get state borders and use the `tm_shape()` function.
@@ -197,8 +198,8 @@ tm_shape(stateBorders) +
   tm_borders(col = "grey") +
   tm_layout(legend.outside = TRUE) +
   tm_shape(sfdf2) +
-  tm_facets(by = "GroupTotalED", ncol = 5)  +
   tm_symbols(col = "EF", palette = "Reds", n = 6, alpha = .6, border.lwd = 0) +
+  tm_facets(by = "GroupTotalED", ncol = 5)  +
   tm_layout(panel.labels = paste(df$Name2, df$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
 ```
 
@@ -210,7 +211,7 @@ table(dfnD$nD)
 (155 - 46)/155 * 100
 ```
 
-There are 49 groups lasting only one day, 71 groups lasting two days, etc.
+There are 46 groups lasting only one day, 83 groups lasting two days, etc.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
 ```{r}
@@ -244,7 +245,7 @@ df <- Tor.sfdfT %>%
 dim(df)
 ```
 
-There are 212 big days in large groups. These will be used for additional analysis and modeling.
+There are 218 big days in large groups. These will be used for additional analysis and modeling.
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r}
@@ -261,7 +262,7 @@ TotalBigDays <- Tor.sfdfT %>%
 
 dim(df)[1]/dim(TotalBigDays)[1] * 100
 ```
-29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
+30% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
 Table the number of days per group. Also look at the day counts by year and month.
 ```{r}
@@ -687,4 +688,4 @@ tm_shape(stateBorders) +
   tm_layout(panel.labels = paste(test$cDate, test$work, test$nT), panel.label.size = 0.9, panel.label.bg.color = "grey90") 
 ```
 
-It over predicts when there are less tornadoes. Under predicts when there are more. 
+It over predicts when there are fewer tornadoes. Under predicts when there are more. 
