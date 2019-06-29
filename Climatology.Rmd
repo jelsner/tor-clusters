@@ -476,7 +476,7 @@ dim(BigDays.sfdfT)
 ######################
 
 Make tables: Top 10 tornado groups by number of tornadoes, power dissipation, and duration.
-```{r}
+```{r, eval = FALSE}
 Groups.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
@@ -495,7 +495,7 @@ Groups.sfdfT %>%
 ```
 
 Map the locations (start points) of the top 25 tornado groups by power dissipation. First select the top 25 groups by total ED. Then create a simple features data frame using only the tornadoes in these groups by filtering on group number. Arrange by ascending ED. Also arrange by EF so the most damaging tornadoes (higher EF rating) are placed on the plot after the least damaging tornadoes.
-```{r}
+```{r, eval = FALSE}
 Top25BigDays <- as.data.frame(Groups.sfdfT) %>%
   top_n(n = 25, wt = GroupTotalED) %>%
   arrange(GroupTotalED)
@@ -509,7 +509,7 @@ sfdf2 <- left_join(sfdf, Top25BigDays, by = "groupNumber") %>%
 ```
 
 Get state borders and use the `tm_shape()` function.
-```{r}
+```{r, eval = FALSE}
 sts <- state.name[!state.name %in% c("Alaska", "Hawaii")]
 stateBorders <- us_states(states = sts)
 
@@ -523,7 +523,7 @@ tm_shape(sfdf2) +
 ```
 
 Distribution of the number of days each group lasts.
-```{r}
+```{r, eval = FALSE}
 dfnD <- as.data.frame(Groups.sfdfT) %>%
   arrange(desc(nD))
 table(dfnD$nD)
@@ -542,7 +542,7 @@ as.data.frame(Groups.sfdfT) %>%
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
-```{r}
+```{r, eval = FALSE}
 as.data.frame(Groups.sfdfT) %>%
   filter(nD >= 3) %>%
   count(Month) %>%
@@ -561,7 +561,7 @@ groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentr
 ```
 
 Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
-```{r}
+```{r, eval = FALSE}
 BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
 BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
 BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
@@ -570,7 +570,7 @@ BigDays.sfdfT <- st_transform(BigDays.sfdfT,
 
 Map of the longest tornado outbreak. Tornado points colored by cDate. 
 
-```{r}
+```{r, eval = FALSE}
 longestgroup <- Groups.sfdfT %>%
   filter(groupNumber == 3075)
 longestgroup <- st_convex_hull(longestgroup)
@@ -583,7 +583,7 @@ longestdaytorns <- GroupTornadoes %>%
 ```
 
 
-```{r}
+```{r, eval = FALSE}
 states.sf <- us_states()
 counties.sf <- us_counties()
 
@@ -619,7 +619,7 @@ tm_shape(longestdaytorns, title = "Day") +
 ##################
 
 Top 10 Big Tornado Days: 
-```{r}
+```{r, eval = FALSE}
 BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
@@ -627,13 +627,13 @@ BigDays.sfdfT %>%
 ** Table 2: The top ten big days in the largest tornado groups. ATP is the accumulated tornado power on a big day. **
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
-```{r}
+```{r, eval = FALSE}
 sum(BigDays.sfdfT$GroupDayCas)/sum(All_Tornadoes$cas) * 100
 sum(BigDays.sfdfT$GroupDayFat)/sum(All_Tornadoes$fat) * 100
 ```
 
 Table the number of days per group. Also look at the day counts by year and month.
-```{r}
+```{r, eval = FALSE}
 table(table(BigDays.sfdfT$groupNumber))
 table(BigDays.sfdfT$Year)
 table(BigDays.sfdfT$Month)
@@ -645,7 +645,7 @@ table(BigDays.sfdfT$Month)
 61% of all big days in large groups occur during April, May, and June.
 
 Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
-```{r}
+```{r, eval = FALSE}
 counties.sf <- st_transform(counties.sf, 
                             crs = st_crs(BigDays.sfdfT))
 
@@ -655,7 +655,7 @@ stateBorders <- st_transform(stateBorders,
 
 Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
-```{r}
+```{r, eval = FALSE}
 May30 <- BigDays.sfdfT %>%
   filter(cDate == "2004-05-30")
 May30 <- st_convex_hull(May30)
@@ -668,7 +668,7 @@ May30tornadoes <- BigDayTornadoes %>%
 ```
 
 Make a map of the May 30 tornado day. Obtain the state and county boundaries from the **USAboundaries** package. 
-```{r}
+```{r, eval = FALSE}
 tm_shape(stateBorders) + 
   tm_borders(col = "gray15", alpha = 1) +
   tm_scale_bar(width = .75, size = 1.25, lwd = 2) +
@@ -698,22 +698,7 @@ tm_shape(May30centroid) +
 ```
 ** Figure 2: May 30, 2004, is a big tornado day characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull).**
 
-Histogram of the values for the environmental variables.
-```{r}
-cape <- density(BigDays.sfdfT$maxCAPE2)
-helicity <- density(BigDays.sfdfT$maxHLCY2)
-cin <- density(BigDays.sfdfT$minCIN2)
-bulkshear <- density(BigDays.sfdfT$maxBS2)
-stormmotion <- density(BigDays.sfdfT$maxSM2)
-plot(cape, col = "blue", xlim = c(-8, 8), ylim = c(0,0.7), main = "Environmental Variables", xlab = "Value", ylab = "Density", lwd = 3)
-lines(helicity, col = "darkgreen", lwd = 3, pch = 19)
-lines(cin, col = "hotpink", lwd = 3)
-lines(bulkshear, col = "orange", lwd = 3)
-lines(stormmotion, col = "red", lwd = 3)
-legend(-8, 0.7, legend = c("CAPE/1000", "Helicity/10", "CIN/10", "Bulk Shear/10", "Storm Motion/10"), col = c("blue", "darkgreen", "hotpink", "orange", "red"), lty = 1:5, cex = 0.8)
-```
-
-```{r}
+```{r, eval = FALSE}
 BigDays.sfdfT %>%
   top_n(n = 3, wt = -ATE) %>%
   arrange(desc(ATE))
