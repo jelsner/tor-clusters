@@ -773,12 +773,12 @@ states <- us_states()
 
 ```{r, eval = FALSE}
 p1 <- tm_shape(CAPE_extent) +
-  tm_raster(title = expression(paste("CAPE [J ", kg^-1, "]")),  n = 6) +
-  tm_format("World", legend.position = c("right", "bottom"),
+  tm_raster(title = "",  n = 6, palette = "Reds") +
+  tm_format(title = expression(paste("CAPE [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
                    attr.position = c("right", "bottom"),
                    legend.frame = FALSE,
                    inner.margins = c(.1, 0, .1, .18), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.28, legend.title.size=1.5, legend.bg.color = "white", title.size = 20) +
+                    legend.text.size = 1.3, legend.width = -0.28, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
 #tm_shape(counties) +
   #tm_borders(col = "grey") +
   tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
@@ -786,8 +786,8 @@ tm_shape(states) +
   tm_borders() +
 tm_shape(May6, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3)  +
-tm_shape(May6centroid) +
-  tm_symbols(size = 1.25, col = "black", shape = 24) +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
 tm_shape(CAPE_latlon) + 
   tm_symbols(size = 1.4, col = "black", shape = 22)
 p1
@@ -815,12 +815,12 @@ proj4string(HLCY_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-
 
 ```{r, eval = FALSE}
 p2 <- tm_shape(HLCY_extent) +
-  tm_raster(title = expression(paste("HLCY [",m^2, s^-2, "]")), n = 5) +
-  tm_format("World", legend.position = c("right", "bottom"),
+  tm_raster(title = "", n = 5, palette = "Blues") + #"YlGnBu") +
+  tm_format(title = expression(paste("HLCY [",m^2, s^-2, "]")), "World", legend.position = c("right", "bottom"),
                    attr.position = c("right", "bottom"),
                    legend.frame = FALSE,
                    inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 20) +
+                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
 #tm_shape(counties) +
 #  tm_borders(col = "grey") +
   tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
@@ -828,8 +828,8 @@ tm_shape(states) +
   tm_borders() +
 tm_shape(May6, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3)  +
-tm_shape(May6centroid) +
-  tm_symbols(size = 1.25, col = "black", shape = 24) +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
 tm_shape(HLCY_latlon) + 
   tm_symbols(size = 1.4, col = "black", shape = 22)
 p2
@@ -857,12 +857,12 @@ proj4string(CIN_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-1
 
 ```{r, eval = FALSE}
 p3 <- tm_shape(CIN_extent) +
-  tm_raster(title = expression(paste("CIN [J ", kg^-1, "]")), n =5) +
-  tm_format("World", legend.position = c("right", "bottom"),
+  tm_raster(title = "", n =5, palette = "Greens") + #"YlOrBr") +
+  tm_format(title = expression(paste("CIN [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
                    attr.position = c("right", "bottom"),
                    legend.frame = FALSE,
                    inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 20) +
+                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
 #tm_shape(counties) +
 #  tm_borders(col = "grey") +
   tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
@@ -870,8 +870,8 @@ tm_shape(states) +
   tm_borders() +
 tm_shape(May6, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3)  +
-tm_shape(May6centroid) +
-  tm_symbols(size = 1.25, col = "black", shape = 24) +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
 tm_shape(CIN_latlon) + 
   tm_symbols(size = 1.4, col = "black", shape = 22)
 p3
@@ -899,12 +899,12 @@ proj4string(BS_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-10
 
 ```{r, eval = FALSE}
 p4 <- tm_shape(BS_extent) +
-  tm_raster(title = expression(paste("BS [m ", s^-1, "]")), n = 5) +
-  tm_format("World", legend.position = c("right", "bottom"),
+  tm_raster(title = "", n = 5, palette = "Purples") +
+  tm_format(title = expression(paste("BS [m ", s^-1, "]")), "World", legend.position = c("right", "bottom"),
                    attr.position = c("right", "bottom"),
                    legend.frame = FALSE,
                    inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.2, legend.title.size=1.5, legend.bg.color = "white", title.size = 20) +
+                    legend.text.size = 1.3, legend.width = -0.2, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
 #tm_shape(counties) +
 #  tm_borders(col = "grey") +
   tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
@@ -912,8 +912,8 @@ tm_shape(states) +
   tm_borders() +
 tm_shape(May6, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3)  +
-tm_shape(May6centroid) +
-  tm_symbols(size = 1.25, col = "black", shape = 24) +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
 tm_shape(BS_latlon) + 
   tm_symbols(size = 1.4, col = "black", shape = 22)
 p4
