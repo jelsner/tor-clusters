@@ -253,8 +253,11 @@ BigDays.sfdfT <- All_Tornadoes %>%
             GroupDayMeanED = mean(ED),
             GroupDayCas = sum(cas),
             GroupDayFat = sum(fat),
-            StartTime = first(DateTime),
-            EndTime = last(DateTime)) %>%
+            StartTime_CST = first(DateTime),
+            EndTime_CST= last(DateTime),
+            StartTime_UTC = StartTime_CST + 21600,
+            EndTime_UTC = EndTime_CST + 21600,
+            Duration = difftime(EndTime_CST, StartTime_CST, units = "secs")) %>%
   filter(nT >= 10) %>%
   mutate(Year = year(cDate),
          Mo = month(cDate),
@@ -289,21 +292,19 @@ BigDayTornadoes <- BigDayTornadoes %>%
 sum(BigDays.sfdfT$nT)
 ```
 
+
+#######ERRORS BELOW
+
 ################################
 ## Part 2: Environmental data ##
 ################################
 
 ## Get the NARR time
 
-Convert `StartTime` and `EndTime` to UTC.
-```{r, eval = FALSE}
-attr(BigDays.sfdfT$StartTime, "tzone") <- "UTC"
-attr(BigDays.sfdfT$EndTime, "tzone") <- "UTC"
-```
-
 Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the **xts** package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day. 
 ```{r, eval = FALSE}
-BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime, n = (60 * 60 * 3)) - 3600 * 3)
+BigDays.sfdfT$StartTime_UTC <- force_tz(BigDays.sfdfT$StartTime_UTC, tzone = "UTC")
+BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime_UTC, n = (60 * 60 * 3)) - 3600 * 3)
 ```
 
 Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs.
@@ -320,9 +321,7 @@ BigDays.sfdfT %>%
   group_by(NARRZtime) %>%
   summarize(count = n())
 ```
-** Table 3: Total number of big days associated with each Z time. **
-
-
+**Table 3: Total number of big days associated with each Z time.**
 
 Create a downloadable string of information for the varying NARR times. 
 ```{r, eval = FALSE}
@@ -395,7 +394,7 @@ maxSM <- numeric()
  
 for(i in 1:length(slug)){
   print(i)
-  rb <- brick(paste0("/Volumes/My Passport for Mac/NCARNARR/All/", BigDays.sfdfT$slug2[i], "/",BigDays.sfdfT$slug[i])) #<-- this is for varying NARR times
+  rb <- brick(paste0("/Volumes/Zoe's Work/NCARNARR/All/", BigDays.sfdfT$slug2[i], "/",BigDays.sfdfT$slug[i])) #<-- this is for varying NARR times
   CAPE <- raster(rb, layer = 375)
   HLCY <- raster(rb, layer = 323)
   CIN <- raster(rb, layer = 376)
@@ -466,8 +465,8 @@ BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
-#save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "BigDays.RData")
-load("BigDays.RData")
+#save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "Climatology.RData")
+load("Climatology.RData")
 dim(BigDays.sfdfT)
 ```
 
@@ -538,7 +537,7 @@ as.data.frame(Groups.sfdfT) %>%
   summarize(tot_events = n(),
             tot_torn = sum(nT))
 ```
-** Table 1: The total number of large groups and tornadoes by duration. **
+**Table 1: The total number of large groups and tornadoes by duration. **
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
@@ -589,7 +588,8 @@ counties.sf <- us_counties()
 
 longestdaytorns <- longestdaytorns %>%
   mutate(ID = as.factor(gsub("-", "", cDate)))
-longestdaytorns$ID <- cut(longestdaytorns$ID, levels=c(20040904, 20040905, 20040906, 20040907, 20040908))
+
+#longestdaytorns$ID <- cut(longestdaytorns$ID, levels=c(20040904, 20040905, 20040906, 20040907, 20040908), breaks = FALSE)
 longestdaytorns$ID <- factor(longestdaytorns$ID, levels = rev(levels(longestdaytorns$ID)))
 ```
 
