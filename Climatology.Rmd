@@ -537,7 +537,7 @@ as.data.frame(Groups.sfdfT) %>%
   summarize(tot_events = n(),
             tot_torn = sum(nT))
 ```
-**Table 1: The total number of large groups and tornadoes by duration. **
+**Table 1: The total number of large groups and tornadoes by duration. ** #CORRECT
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
@@ -581,7 +581,6 @@ longestdaytorns <- GroupTornadoes %>%
   filter(groupNumber == 3075)
 ```
 
-
 ```{r, eval = FALSE}
 states.sf <- us_states()
 counties.sf <- us_counties()
@@ -589,7 +588,6 @@ counties.sf <- us_counties()
 longestdaytorns <- longestdaytorns %>%
   mutate(ID = as.factor(gsub("-", "", cDate)))
 
-#longestdaytorns$ID <- cut(longestdaytorns$ID, levels=c(20040904, 20040905, 20040906, 20040907, 20040908), breaks = FALSE)
 longestdaytorns$ID <- factor(longestdaytorns$ID, levels = rev(levels(longestdaytorns$ID)))
 ```
 
@@ -619,7 +617,7 @@ tm_shape(longestdaytorns) +
             legend.frame = FALSE, 
             legend.text.size = 1.8, legend.width = -0.3, aes.palette = list(seq = "-Greys"))
 ```
-**Figure 1: The September 4 – 8, 2004 event has the longest duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day. **  
+**Figure 1: The September 4 – 8, 2004 event has the longest duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day. **  #CORRECT
   
 ##################
 # Stats and Maps #
@@ -631,7 +629,7 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-** Table 2: The top ten big days in the largest tornado groups. ATP is the accumulated tornado power on a big day. **
+**Table 2: The top ten big days in the largest tornado groups. ATP is the accumulated tornado power on a big day. ** #CORRECT
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r, eval = FALSE}
@@ -703,15 +701,15 @@ tm_shape(May30, is.master = TRUE, projection = "merc") +
   tm_borders(col = "black", lwd = 3) +
 tm_shape(May30tornadoes) +
   tm_symbols(size = 5, col = "Hour2", palette = "Greys", title.col = "Time [CST]", labels = c("6 to 12", "12 to 18", "18 to 24", "0 to 6")) +
-    tm_layout(legend.title.size = 2.1,
+    tm_layout(legend.title.size = 1.8,
             legend.position = c("right", "bottom"), 
             legend.stack = "horizontal",
             legend.frame = FALSE, 
-            legend.text.size = 1.8, legend.width = -0.2) +
+            legend.text.size = 1.6, legend.width = -0.2) +
 tm_shape(May30centroid) +
   tm_symbols(size = 1.25, col = "black", shape = 24) 
 ```
-**Figure 2: May 30, 2004, is a big tornado day characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull).**
+**Figure 2: May 30, 2004, is a big tornado day characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull).** #CORRECT
 
 ```{r, eval = FALSE}
 BigDays.sfdfT %>%
