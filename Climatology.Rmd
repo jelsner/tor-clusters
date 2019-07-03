@@ -4,14 +4,18 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
-Research to be submitted to the **Electronic Journal of Severe Storms Meteorology**
+Research to be submitted to the **International Journal of Climatology**
 
-## Part 1: Tornado data
+Title: Quantifying relationships between environmental factors and power dissipation on the most prolific days in the largest tornado "outbreaks"
 
-Set working directory and load packages. Suppress the messages of the packages. 
+##Abstract
+
+
+
+Load packages and suppress the messages of the packages. 
 ```{r}
 suppressMessages(library(lubridate))
 suppressMessages(library(sf))
@@ -31,7 +35,30 @@ suppressMessages(library(viridis))
 suppressMessages(library(gridExtra))
 ```
 
-The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.
+##Introduction
+
+Tornadoes pose a significant risk to life and property in the United States. The strongest tornadoes producing the majority of fatalities occur in clusters \citep{ElsnerElsnerJagger2015, FuhrmannEtAl2014, DeanandSchneider2012, SchneiderEtAl2004, Mercer2009, Galway1977}. In fact, three-fourths of all fatalities occur on days with the most tornadoes within a multi-day outbreak. For example, the April 27, 2011 outbreak produced 199 tornadoes that resulted in 316 fatalities and more than 2700 injuries. Insured losses exceeded \$11 billion \citep{Knupp2014}.
+
+Tornado clusters (`outbreaks') occur generally east of the Rocky Mountains and west of the Appalachian Mountains \citep{Dean2010} during the months of April, May, and June \citep{DixonEtAl2014, TippettEtAl2014,  TippettEtAl2012, Trapp2014, Dean2010, Galway1977}. Outbreaks are largely confined to the Southeast during the late fall and winter months \citep{Dean2010}. The percentage of all U.S.~tornadoes occurring in clusters is on the rise \citep{Moore2017,  TippettEtAl2016, ElsnerElsnerJagger2015, TippettEtAl2014, BrooksEtAl2014}. Why this is happening could be related to changes in environmental factors that influence the amount and intensity of deep convection.
+
+To shed light on this question, here we examine the relationships between collective tornado activity within a cluster and the associated environmental variables. Studies have identified environmental factors important to the development of tornadoes \citep{AndersonFrey2018, ChengEtAl2016,  DeanandSchneider2012, JacksonandBrown2009, DoswellandEvans2003, Brown2002, Craven2002, Brooks1994}. Missing from these studies is a quantification of the relationships between environmental factors and collective tornado activity. Specifically, how much convective available potential energy is needed, for example, to produce a ten percent increase in accumulated tornado power (ATP)?  
+
+The objective here is to quantify the extent to which environmental factors influence ATP. We first identify the biggest days in the largest clusters of tornadoes. To quantify the relationships we regress ATP onto convective available potential energy (CAPE), convective inhibition (CIN), helicity, and bulk shear using tornadoes occurring on these big days. Values for the predictor variables are extracted from reanalysis data. Finally we examine model residuals for goodness of fit.
+
+The paper is outlined as follows. The method to define tornado clusters and the selection criteria for determining the big days within large clusters are described in \S2. Tornado power dissipation is defined and estimated in \S3. The environmental variables are described in \S4 and the statistical relationships between ATP and the environmental variables are modeled and described in \S5. A summary of the paper and a list of conclusions along with ways the study can be improved are given in \S6.
+
+##Tornado Clusters
+
+`Definitions and Data`
+
+A tornado can occur in isolation or within a cluster with other tornadoes. The American Meteorological Society formally defines a tornado outbreak as "multiple tornado occurrences associated with a particular synoptic-scale system" \citep{AMS2018}. Less formally it is understood that an outbreak is a cluster of several to dozens of tornadoes that occur within a relatively short time scale and over a limited geographic region \citep{MalamudTurcotteBrooks2016, TippettEtAl2016, ElsnerElsnerJagger2015}. We focus on tornado clusters in this work rather than on individual tornadoes because clusters have a larger spatial and temporal extent than individual tornadoes that better matches the scale represented by the environmental data. We refer to them as "clusters" rather than "outbreaks"" because we make no attempt to associate the clusters with a particular synoptic-scale system. 
+
+In this paper we consider only tornadoes occurring on convective days having at least ten tornadoes when those days are part of a cluster of at least 30 tornadoes. This requires a two step approach. Step one groups the tornadoes into clusters and step two selects tornadoes from clusters with at least 30 tornadoes on days with at least ten tornadoes.
+
+We obtain the tornado data from the Storm Prediction Center’s extensive tornado record (\url{https://www.spc.noaa.gov/wcm/#data}). Date, time, and location of each tornado are used to delineate groups of tornadoes. The data are subset to include only contiguous United States tornadoes that occur from 1994 to 2017, inclusive. The start year marks the beginning of the extensive use of the WSR-88D radar. There are 29,372 tornadoes in the available record over this period of time. 
+
+
+**The newest GIS shapefile contains missing geometries for more than 30% of the tornadoes. The number of missing geometries is highest after 1995. Instead here we use the csv file from https://www.spc.noaa.gov/wcm/#data  Use the start lon/lat and create a `sp` object then convert to `sf`. Set the coordinate reference system (crs) to ESPG 4326.**
 ```{r, eval = FALSE}
 Tor.spdf <- read.csv(file = "1950-2017_actual_tornadoes.csv")
 sp::coordinates(Tor.spdf) <- ~ slon + slat
@@ -39,7 +66,7 @@ Tor.sfdf <- st_as_sf(Tor.spdf)
 st_crs(Tor.sfdf) <- 4326
 ```
 
-Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. That year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf
+**Remove tornadoes in Hawaii, Alaska, and Puerto Rico and those occurring before 1994. That year marks the beginning of comprehensive WSR-88D radar. For missing EF ratings use the modification rules (if/else) defined here: https://www.spc.noaa.gov/wcm/OneTor_F-scale-modifications.pdf **
 ```{r, eval = FALSE}
 All_Tornadoes <- Tor.sfdf %>%
   filter(yr >= 1994,
@@ -48,7 +75,7 @@ All_Tornadoes <- Tor.sfdf %>%
          mag = ifelse(mag == -9 & len > 5, 1, mag))
 ```
 
-Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).
+**Add a data/time column also add columns for path length, width, and area in metric units. Leave the time zone as native CDT. Create a convective day (6AM to 6AM) column taking hours 00:00:00 -> 05:59:59 and assigning it to the previous date (this associates the previous day's date to tornadoes occurring up to 6 hours after local midnight).**
 ```{r, eval = FALSE}
 All_Tornadoes <- All_Tornadoes %>%
   mutate(dy = format(as.Date(date,format="%m/%d/%y"), "%d"),
@@ -66,16 +93,10 @@ All_Tornadoes <- All_Tornadoes %>%
          AreaPath = Length * Width,
          Ma = factor(month.abb[mo], levels = month.abb[1:12])) %>%
   sf::st_sf()
-max(All_Tornadoes$yr)
+dim(All_Tornadoes)[1]
 ```
 
-The geometry type is `POINT`. Each tornado is represented as a single point location geometry (start location). 
-
-Add power dissipation per tornado. Use the empirical model for tornado winds by EF rating taken from Table 3-1 of NRC 2007. Percent area by EF rating for each EF category. Threshold wind speeds (m/s) are a lower bound 3-sec gusts on the operational EF Scale (Table 2-1 of NRC2007). This is based on work by Fricker et al. (2017). The model is
-$$
-E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},
-$$
-where $A_p$ is the area of the path, $\rho$ is area density [1 kg/m^3]  $v_j$ is the midpoint wind speed for each rating, and $w_j$ is the corresponding fraction of path area by EF rating. With no upper bound on the EF5 wind speeds, the midpoint wind speed is set at 97 m~s$^{-1}$ (7.5 m~s$^{-1}$ above the threshold wind speed consistent with the EF4 midpoint speed relative to its threshold)
+**The geometry type is `POINT`. Each tornado is represented as a single point location geometry (start location). Add power dissipation per tornado. ** 
 ```{r, eval = FALSE}
 perc <- c(1, 0, 0, 0, 0, 0, 
           .772, .228, 0, 0, 0, 0,
@@ -91,18 +112,26 @@ EW3 <- numeric()
 for(i in 1:length(ef)) EW3[i] = midptW^3 %*% percM[ef[i], ]
 All_Tornadoes <- All_Tornadoes %>%
   mutate(ED = EW3 * AreaPath)
-```
+``` 
 
-Determine the distance between tornadoes in space and time. Use a projection, not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.
+## Group tornadoes into clusters
+
+First we project the geographic coordinates of the tornado locations using a Lambert conic conformal projection for the contiguous United States. The projection origin is situated in eastern Kansas (39$^\circ$ N latitude and 96$^\circ$ W longitude). Then the Euclidean distance ($d_{ij}$) between the genesis location of tornadoes $i$ and $j$ is computed for all tornado pairs. Similarly, the time separating each tornado pair ($t_{ij}$) is computed and added to a scaled Euclidean distance to give a space-time difference ($\delta_k$). The equation is
+$$
+	\delta_k = d_{ij}/s + t_{ij},
+$$
+where $s$ is a scaling factor and where $k = n(n+1)/2$ indexes the unique tornado pairs where $n$ is the number of tornadoes. The scaling factor is set to 15~m~s$^{-1}$ to match the units of $t_{ij}$ (seconds) and to match the average speed of tornado-producing thunderstorms (although there is wide variation in this average).
+
+Next, the $k$ space-time differences ($\delta_k$) are used to group the individual tornadoes into clusters. If tornado $i$ is in close proximity to tornado $j$ based on a small value of $\delta_k$, then the two tornadoes are considered to belong to the same cluster. Clustering is done using the single-linkage method whereby the two tornadoes with the smallest $\delta_k$ are grouped first. Then the two tornadoes (or the first tornado cluster and another tornado) with the next smallest $\delta_k$ are grouped second. The procedure continues by grouping tornado pairs, cluster-tornado pairs, and cluster-cluster pairs until there is a single large cluster. A cluster-tornado pair occurs when the shortest distance is between the closest tornado in the cluster and a tornado not in the cluster. For example, three tornadoes each 100 km ($\sim$2 hours at 15~m~s$^{-1}$) apart occurring at the same time are considered a cluster. A fourth tornado is considered in the cluster if it is no more than 100 km from {\it any} one of the other three tornadoes. The grouping is done with the {\texttt hclust} function from the {\texttt stats} package in R. 
+
+**Determine the distance between tornadoes in space and time. Use a projection, not lat/lon. See https://epsg.io/102004. Extract the coordinates of the start locations as a N by 2 matrix, where N is the number of tornadoes. Also extract the date-time as a vector of class `POSIXct`.**
 ```{r, eval = FALSE}
 All_Tornadoes <- st_transform(All_Tornadoes, crs = 102004)
 space <- st_coordinates(All_Tornadoes)
 time <- All_Tornadoes$DateTime
 ```
 
-Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 15 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters per second (~34 mph) for an average speed of tornado-generating storms. 
-
-Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory.
+**Next compute pairwise Euclidean distances in space and, separately, in time using the `dist()` function. Divide the spatial distance by 15 so that the values are commensurate with the time 'distance' based on the assumption of 15 meters per second (~34 mph) for an average speed of tornado-generating storms. Compare: Distance from New York to Denver is 2.622 x 10^6 meters. There are 3.154 x 10^7 seconds in a year. This will capture the historic multiday tornado outbreaks. For analysis we want to consider each day in the multiday group separately. As the value of the divisor increases cluster areas get larger. Remove `ds` and `dt` to free memory. Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.**
 ```{r, eval = FALSE}
 ds <- dist(space) / 15
 dt <- dist(time)
@@ -110,13 +139,9 @@ dst <- ds + dt
 rm(ds, dt)
 ```
 
-Distances are saved as an object of class `dist` containing a vector of length N * (N-1)/2, which is the number of unique point pairs.
+Our interest centers on clusters that are not too small (e.g., a family of tornadoes from a single supercell) and not too large (e.g., all tornadoes during a week). So we stop grouping once there are no additional pairs within a $\delta_k$\ of 50K ($\sim$14 space-time hours). This results in 6,156 unique clusters and 155 large (at least 30 tornadoes) clusters. The largest cluster occurred from April 26--28, 2011. It contains 293 tornadoes. Duration of the clusters ranges from 46 one-day clusters to one five-day cluster (Table~\ref{GroupsbyDuration}). Multi-day clusters account for 69.5\% of all our clusters. The cluster with the longest duration occurred from September 4--8, 2004 and contained 103 tornadoes (Fig.~\ref{LargestGroup}). Our clusters match the outbreaks identified subjectively by \cite{Forbes2006} with an agreement rate of 88\%.
 
-Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group.
-
-The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).
- 
-The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 50000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).
+**Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group. The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 50000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).**
 ```{r, eval = FALSE}
 stime <- proc.time()
 tree <- hclust(dst, method = "single")
@@ -124,12 +149,12 @@ groupNumber <- as.integer(cutree(tree, h = 50000))
 proc.time() - stime
 ```
 
-Add the group number to each tornado. 
+**Add the group number to each tornado. **
 ```{r, eval = FALSE}
 All_Tornadoes$groupNumber <- groupNumber
 ```
 
-Compute group-level statistics. Keep only tornado groups with at least 30 tornadoes.
+**Compute group-level statistics. Keep only tornado groups with at least 30 tornadoes.**
 ```{r, eval = FALSE}
 Groups.sfdfT <- All_Tornadoes %>%
   group_by(groupNumber) %>%
@@ -159,9 +184,8 @@ Groups.sfdfT <- All_Tornadoes %>%
   filter(nT >= 30)
 dim(Groups.sfdfT)
 ```
-There are 6156 Groups and 155 large groups.
 
-Get the tornadoes that are in the 155 large groups. 
+**Get the tornadoes that are in the 155 large groups. **
 ```{r, eval = FALSE}
 GroupTornadoes <- All_Tornadoes %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber)
@@ -171,72 +195,119 @@ GroupTornadoes <- All_Tornadoes %>%
 ## Forbes 2004 Comparison ##
 ############################
 
-Over the period 1994-2017 there were 155 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?
+**Over the period 1994-2017 there were 155 tornado groups with at least 30 tornadoes. How many of these groups are not considered `outbreaks`? How many previously considered `outbreaks` are missed by this algorithm?**
 ```{r, eval = FALSE}
-#FUHRMANN 2014
-Groups.sfdfT %>%
-  filter(Year <= 2011) %>%
-  top_n(n = 9, wt = nT) %>%
-  arrange(desc(nT))
-
-Groups.sfdfT %>%
-  filter(Year <= 2011) %>%
-  top_n(n = 9, wt = GroupTotalED) %>%
-  arrange(desc(GroupTotalED))
-
 #FORBES 2004
 Groups.sfdfT %>%
   filter(Year <= 2004) %>%
   top_n(n = 13, wt = nT) %>%
   arrange(desc(nT))
 
-Groups.sfdfT %>%
-  filter(Year <= 2004) %>%
-  top_n(n = 13, wt = GroupTotalED) %>%
-  arrange(desc(GroupTotalED))
 ```
 
-```{r, eval = FALSE}
-Groups.fpfn <- Groups.sfdfT %>%
-  filter(Year <= 2011)
-
-Groups.fpfn %>%
-  top_n(n = 9, wt = nT) %>%
-  arrange(desc(nT))
-```
-
-False Positive: How many outbreaks Schroder and Elsner identified, not identified by Forbes/Fuhrmann
-False Negative: How many Forbes/Fuhrmann picked up that we did not
-% Match: F match Z / sum(F & Z )
+**False Positive: How many outbreaks Schroder and Elsner identified, not identified by Forbes/Fuhrmann**
+***False Negative: How many Forbes/Fuhrmann picked up that we did not**
+**% Match: F match Z / sum(F & Z )**
 ```{r, eval = FALSE}
 FPFN <- read.csv("FPFN_Forbes.csv")
 FPFN <- FPFN[1:8,]
 FPFN
 ```
 
-Graph of the percent match values between ours and the Forbes 2004. 
+**Graph of the percent match values between ours and the Forbes 2004. **
 ```{r, eval = FALSE}
-ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
-  geom_line(size = 1.5) +
-  geom_point(size = 2) +
-  labs(x = "Space - Time Distance", 
-       y = "Percent") +
-  theme_minimal() +
-  theme(text = element_text(size=25)) +
+# Graph of the percent match values between ours and the Forbes 2004.
+# ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
+#  geom_line(size = 1.5) +
+#  geom_point(size = 2) +
+#  labs(x = "Space - Time Distance", 
+#   y = "Percent") +
+#  theme_minimal() +
+#  theme(text = element_text(size=25)) +
 #    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
 #  theme(plot.title = element_text(hjust = 0.5)) +
    
 #  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
  #                                       max(FPFN$Cuttree), 
   #                                      by = 15000), 1)) + 
-  ylim(0,100)
+#  ylim(0,100)
 ```
 
-########################################
-## Extract Big Days from Large Groups ##
-########################################
+**Distribution of the number of days each group lasts.**
+```{r, eval = FALSE}
+dfnD <- as.data.frame(Groups.sfdfT) %>%
+  arrange(desc(nD))
+table(dfnD$nD)
+(151-46)/151 * 100 
 
-Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes.
+dfnD <- as.data.frame(Groups.sfdfT) %>%
+  arrange(desc(Year))
+table(dfnD$Year)
+
+as.data.frame(Groups.sfdfT) %>%
+  group_by(nD) %>%
+  summarize(tot_events = n(),
+            tot_torn = sum(nT))
+```
+`Table 1: The total number of large groups and tornadoes by duration.` #CORRECT
+
+**Map of the longest tornado outbreak. Tornado points colored by cDate. **
+
+```{r, eval = FALSE}
+longestgroup <- Groups.sfdfT %>%
+  filter(groupNumber == 3075)
+longestgroup <- st_convex_hull(longestgroup)
+
+#longestdays <- BigDays.sfdfT %>%
+ # filter(groupNumber == 3075)
+
+longestdaytorns <- GroupTornadoes %>%
+  filter(groupNumber == 3075)
+```
+
+```{r, eval = FALSE}
+states.sf <- us_states()
+counties.sf <- us_counties()
+
+longestdaytorns <- longestdaytorns %>%
+  mutate(ID = as.factor(gsub("-", "", cDate)))
+
+longestdaytorns$ID <- factor(longestdaytorns$ID, levels = rev(levels(longestdaytorns$ID)))
+```
+
+```{r}
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray70") +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+#tm_shape(counties.sf) +
+#  tm_borders(col = "gray40", alpha = .3) +
+tm_shape(longestgroup, projection = "merc", is.master = TRUE) + 
+  tm_borders(col = "gray15", alpha = 1, lwd = 5) +
+  tm_scale_bar(width = .6, size = 1.5, lwd = 2, color.dark = "gray70") +
+  tm_compass(size = 7, lwd = 2, fontsize = 1.2, color.dark = "gray70") + 
+    tm_format("World", legend.position = c("left", "top"),
+                    attr.position = c("left", "top"),
+                   legend.frame = FALSE,
+                   #title = "Longest Group of Tornadoes",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.04, .29, .1, .29)) +
+  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
+tm_shape(longestdaytorns) +
+  tm_symbols(size = 5, col = "ID", n = 5, palette = "seq", title.col = "September", labels = c("8th", "7th", "6th", "5th", "4th")) + 
+  tm_layout(legend.title.size = 2.1,
+            legend.position = c("right", "bottom"), 
+            legend.stack = "horizontal",
+            legend.frame = FALSE, 
+            legend.text.size = 1.8, legend.width = -0.3, aes.palette = list(seq = "-Greys"))
+```
+`Figure 1: A cluster of tornadoes in 2004 that occurred between September 4th and 8th. Each circle is a tornado genesis location colored by the day of occurrence. The black line is the minimum convex polygon surrounding all the genesis locations (convex hull)`  #CORRECT
+
+`Select tornadoes from large clusters on days with at least ten tornadoes`
+
+Our objective is to quantify the extent to which well-known environmental factors statistically explain tornado activity at an aggregate level as measure by the accumulated power dissipation. Since some of the environmental factors have large diurnal fluctuations that can confound a multi-day analysis, we narrow our focus further by considering only the most prolific days in these largest groups. We define the day as the 24-hour period starting at 6 AM local time (often referred to as the `convective' day) \citep{DoswellEtAl2006}. A big convective day (big day) as part of a large cluster is defined as one with at least ten tornadoes. 
+
+**Filter individual tornadoes to remove those that are not part of a large group. Group by group number and convective dates. Remove days within big groups (group days) having fewer than 10 tornadoes. There are 212 big days in large groups. These will be used for further analysis and modeling.**
 ```{r, eval = FALSE}
 BigDays.sfdfT <- All_Tornadoes %>%
   filter(groupNumber %in% Groups.sfdfT$groupNumber) %>%
@@ -266,9 +337,10 @@ BigDays.sfdfT <- All_Tornadoes %>%
          ATP = GroupDayTotalED/10^12)                                                                                      
 dim(BigDays.sfdfT)
 ```
-There are 212 big days in large groups. These will be used for further analysis and modeling.
 
-What is the percentage of all big days (>= 10 tornadoes) that occur within a big group?
+With this definition, we find 212 big days within our large clusters. Note that there are sometimes more than one big day in a single large cluster. Also, ten or more tornadoes can occur within smaller clusters, and our set of big days accounts for only 29\% of all days with at least ten tornadoes.  The top two big days (April 26, 2011, and April 27, 2011) are associated with the largest tornado cluster (Table~\ref{BiggestDays}). Note that this set of big days identified and analyzed in this paper is unchanged for values of $s$ (Eq.~\ref{stdiff}) ranging between 8 and 20~m~s$^{-1}$.
+
+**What is the percentage of all big days (>= 10 tornadoes) that occur within a big group? 29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)**
 ```{r, eval = FALSE}
 TotalBigDays <- All_Tornadoes %>%
   group_by(groupNumber, cDate) %>%
@@ -277,9 +349,9 @@ TotalBigDays <- All_Tornadoes %>%
 
 dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
-29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)
 
-Create a unique ID for each big day and each tornado. Extract the tornadoes associated with each big day using the unique ID. 
+
+**Create a unique ID for each big day and each tornado. Extract the tornadoes associated with each big day using the unique ID.**
 ```{r, eval = FALSE}
 BigDayTornadoes <- All_Tornadoes %>%
    mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
@@ -292,54 +364,88 @@ BigDayTornadoes <- BigDayTornadoes %>%
 sum(BigDays.sfdfT$nT)
 ```
 
-
-#######ERRORS BELOW
-
-################################
-## Part 2: Environmental data ##
-################################
-
-## Get the NARR time
-
-Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the **xts** package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day. 
 ```{r, eval = FALSE}
-BigDays.sfdfT$StartTime_UTC <- force_tz(BigDays.sfdfT$StartTime_UTC, tzone = "UTC")
-BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime_UTC, n = (60 * 60 * 3)) - 3600 * 3)
+as.data.frame(BigDays.sfdfT) %>%
+  dplyr::select(cDate, nT, GroupDayCas, ATE) %>%
+  top_n(n = 10, wt = nT) %>%
+  arrange(desc(nT))
+```
+`Table 2: The top ten big days in the largest tornado clusters. ATP is the accumulated tornado power.` #CORRECT
+
+Figure~\ref{May30} is an example of a big day in a large cluster. There were 88 tornadoes on that day. The cluster is identified as the eighth most prolific by our method (and the first most prolific by \cite{Forbes2006}) and extended over a two convective day period beginning on May 30th. This is the seventh largest of our big days as defined by the number of tornadoes in any large cluster.
+
+Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
+```{r, eval = FALSE}
+counties.sf <- st_transform(counties.sf, 
+                            crs = st_crs(BigDays.sfdfT))
+
+stateBorders <- st_transform(stateBorders, 
+                            crs = st_crs(BigDays.sfdfT))
 ```
 
-Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs.
-```{r, eval = FALSE}
-NARRday = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%Y/%m/%d")
-NARRZtime = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%H")
+Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
-BigDays.sfdfT <- cbind(BigDays.sfdfT, NARRday, NARRZtime)
+```{r, eval = FALSE}
+May30 <- BigDays.sfdfT %>%
+  filter(cDate == "2004-05-30")
+May30 <- st_convex_hull(May30)
+
+May30centroid <- groupDayCentroids.sfdfT %>%
+  filter(cDate == "2004-05-30")
+
+May30tornadoes <- BigDayTornadoes %>% 
+  filter(groupNumber == May30centroid$groupNumber)
+
+May30tornadoes <- May30tornadoes %>%
+  mutate(Hour2 = ifelse(Hour <= 6, Hour + 24, Hour))
 ```
 
-Create a table to show how many big days fall in each start Z time. 
+**Make a map of the May 30 tornado day. Obtain the state and county boundaries from the `USAboundaries` package. **
 ```{r, eval = FALSE}
-BigDays.sfdfT %>%
-  group_by(NARRZtime) %>%
-  summarize(count = n())
-```
-**Table X: Total number of big days associated with each Z time.** #CORRECT
+May30tornadoes$Hour2 <- cut(May30tornadoes$Hour2, breaks=c(6,12,18,24,30))
 
-Create a downloadable string of information for the varying NARR times. 
-```{r, eval = FALSE}
-BigDays.sfdfT <- BigDays.sfdfT %>%
-  mutate(YrMoDa = gsub("/", "", NARRday),
-         slug = paste0("merged_AWIP32.",YrMoDa, NARRZtime),
-         slug2 = paste0("merged_AWIP32.",YrMoDa))
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray70", alpha = 1) +
+  tm_scale_bar(width = .6, size = 1.5, lwd = 2, color.dark = "gray70") +
+  tm_compass(size = 7, fontsize = 1.2, lwd = 2, color.dark = "gray70") + 
+  tm_layout(legend.bg.color = "white", 
+            legend.text.size = .75, 
+            attr.position = c("right", "top"), 
+            inner.margins = c(.1, .2, .1, .2)) +
+#tm_shape(counties.sf) +
+#  tm_borders(col = "gray40", alpha = .3) +
+#  tm_scale_bar(width = 8, size = 8, color.dark = "gray70") +
+  #tm_format("World", legend.position = c("right", "top"),
+#                   attr.position = c("right", "top"),
+#                   legend.frame = FALSE,
+                   #title = "May 30th Tornado Group",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+ #                  inner.margins = c(.2, .2, .2, .2)) +
+tm_shape(May30, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3) +
+tm_shape(May30tornadoes) +
+  tm_symbols(size = 5, col = "Hour2", palette = "Greys", title.col = "Time [CST]", labels = c("6 to 12", "12 to 18", "18 to 24", "0 to 6")) +
+    tm_layout(legend.title.size = 1.8,
+            legend.position = c("right", "bottom"), 
+            legend.stack = "horizontal",
+            legend.frame = FALSE, 
+            legend.text.size = 1.6, legend.width = -0.2) +
+tm_shape(May30centroid) +
+  tm_symbols(size = 1.25, col = "black", shape = 24) 
+```
+`Figure 2: Tornadoes occurring on May 30, 2004 as part of a big day within a large cluster. Each point represents a genesis location and is colored by the hour it occurred. The black triangle is the geographic center of the genesis locations. The black line is the minimum convex polygon around the genesis locations (convex hull).` #CORRECT
+
+Most big days occur east of the Rockies and west of the Appalachians depicted by the centroids (Fig.~\ref{Centroids}). In particular, there is a group of centroids that spans the middle South extending northwestward toward the central Great Plains. There is also a tendency for days having the most tornadoes to occur farther to the east.
+
+**Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).**
+```{r}
+groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
+groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
 ```
 
-Extract a vector of the big days. Save as a .csv for NARR download. 
-```{r, eval = FALSE}
-bigdays <- BigDays.sfdfT$NARRday
-bigdaytimes <- BigDays.sfdfT$NARRZtime
-x <- cbind(as.character(bigdays), as.character(bigdaytimes))
-write.csv(x, "BigDays.csv")
-```
-
-Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
+**Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.**
 ```{r, eval = FALSE}
 BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
 BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
@@ -347,34 +453,153 @@ BigDays.sfdfT <- st_transform(BigDays.sfdfT,
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
-Get the centroid (central point of the tornado activity) for each big day. 
+**Plot the centroid for each group day and size the aesthetic by the number of tornadoes.**
+```{r}
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray70") +
+  tm_compass(size = 7, position = c("left", "bottom"), fontsize = 1.2, lwd = 2, color.dark = "gray70") + 
+  tm_scale_bar(width = 0.6, size = 1.5, lwd = 2, color.dark = "gray70") +
+#tm_shape(counties.sf) +
+#  tm_borders(col = "gray40", alpha = .3) +
+#  tm_compass(position = c("left", "bottom"), color.dark = "gray70") + 
+#  tm_scale_bar(width = 8, size = 8, color.dark = "gray70") +
+  tm_format("World",
+                   #title = "Big Day Centroids",
+                   #title.size = 1.3,
+                   #title.position = c("left", "TOP"),
+                   inner.margins = c(.1, .1, .1, .1)) +
+tm_shape(groupDayCentroids.sfdfT, is.master = TRUE, projection = "merc") +
+  tm_symbols(col = "nT", n = 4, 
+             palette = c("lightsalmon", "salmon3", "red", "red4"), legend.col.show = FALSE,
+             size = "nT",
+             shape =24, 
+             scale = 4, legend.size.show = FALSE) + 
+  tm_add_legend("symbol", title = "Count", shape = 24,
+                col = c("lightsalmon", "salmon3", "red", "red4"), 
+                size = c(.75, 1, 1.25, 1.5), 
+                labels = c("10 to 50", "50 to 100", "100 to 150", "150 to 200")) +
+  tm_layout(legend.title.size=1.8, 
+            legend.text.size = 1.6,
+            legend.position = c("right","top"),
+            legend.stack = "horizontal",
+            legend.bg.color = "white",
+            legend.frame = FALSE, 
+            legend.width = -0.25)
+``` 
+`Figure 3: Centroids of genesis locations occurring on big days in large clusters. Triangles are sized and colored by the number of tornadoes on that day.` #CORRECT
+
+`Accumulated Tornado Power`
+
+We use tornado counts to define clusters and big days but our interest centers on the accumulated power dissipated over all tornadoes occurring during a big day. The standard indicator of tornado strength is the Enhanced Fujita scale \citep{MalamudTurcotte2012}, but path length and width are sometimes used to compute other intensity metrics \citep{BrooksLeeCraven2003, FuhrmannEtAl2014, MalamudTurcotte2012}. Over a cluster of tornadoes, the Destructive Potential Index (DPI) has been used as a measure of the potential for damage and casualties \citep{ThompsonVescio1998}. The adjusted Fujita mile is a collective measure that uses the highest EF rating multiplied by the tornado track length \citep{FuhrmannEtAl2014}.
+
+Here we follow the work of \cite{FrickerElsnerJagger2017} in defining the power dissipation ($E$) of a tornado as the potential of the wind to inflict damage to objects on the surface. It is calculated using damage path area ($A_p$), air density ($\rho$), midpoint wind speed ($v_j$) for each EF rating ($j = 0, \cdots, J$, where $J$ is the maximum EF rating), and the fraction of the damage path ($w_j$) associated with each rating. $E$ is strongly correlated to DPI but more useful here because it is an extensive variable. As such we sum $E$ over all tornadoes occurring during a big day to get the accumulated tornado power (ATP). Mathematically, we express $E$ and ATP as:
+$$
+E = A_p \rho \sum_{j=0}^{J} w_j v_j^{3},
+$$
+and 
+$$
+ATP = \sum_{i = 1}^n E_i
+$$
+where $n$ is the number of tornadoes occurring in the big day. 
+
+The reporting of path width changed from an `average' to the maximum in 1994. Our study starts with 1994 and so it is not impacted by this change. ATP is calculated using path width and the highest EF rating of each tornado on the big day. Therefore, ATP is considered a maximum estimate of power dissipation on a given day.
+
+A list of the top ten big days in large clusters by ATP includes the infamous days of April 27, 2011 and May 4, 2003 (Table~\ref{BiggestDays}). The ATP on April 27, 2011 is nearly four times the ATP on the next most powerful day (April 26, 2011). The Spearman rank correlation between ATP and the number of tornadoes is 0.63. Big days occurring as part of a large cluster are most likely to occur during April through June (Table~\ref{seasonalATP}). July and August have the fewest big days. Monthly average ATP peaks in April with the next highest months being March and May. May and November have similar values of average ATP. There are fewer big tornado days during November, but when they occur they tend to include stronger tornadoes with longer paths leading to more ATP. 
+
+```{r}
+BigDays.sfdfT %>%
+  group_by(Month) %>%
+  summarize(avgATP = mean(ATE),
+            nT = sum(nT),
+            nBD = n())
+```
+`Table 3: Seasonal variation in accumulated tornado power (ATP), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days are based on tornadoes occurring during the period 1994--2017.` #CORRECT
+
+*Use a Spearman's correlation to quantify the relationship between ATP and the number of tornadoes.  *
+
+```{r}
+cor.test(x = BigDays.sfdfT$ATP, 
+         y = BigDays.sfdfT$nT, 
+         method = 'spearman')
+```
+*Spearman's rank correlation between ATP and number of tornadoes is .633*
+
+`Environmental Variables`
+
+To quantify the relationship between ATP and environmental factors on big days we obtain environmental variables from the National Center for Environmental Prediction's (NCEP) North American Regional Reanalysis (NARR). The data are available from the National Center for Atmospheric Research (NCAR). Variables from the NARR have been used previously to analyze convective environments \citep{BrooksLeeCraven2003, GensiniandAshley2011, MesingerEtAl2006}. Tornado environments have been studied without NARR using proximity soundings and weather stations \citep{PotvinEtAl2010}. Here we are interested in aggregate tornado activity occurring over a broad spatial scale so the NARR variables are used rather than proximity soundings.
+
+We use the original NARR 3-hourly files containing environmental data for each day ranging from 00~UTC to 21~UTC in 3-hour increments. For each big day, we choose the closest time before the occurrence of the first tornado (Table~\ref{BigDayZtime}). This allows us to capture the environment {\it before} the occurrence of tornadoes. The majority of times selected are after 12 UTC with the peak occurring at 15~UTC.
+
+**Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the `xts` package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day. **
+```{r, eval = FALSE}
+BigDays.sfdfT$StartTime_UTC <- force_tz(BigDays.sfdfT$StartTime_UTC, tzone = "UTC")
+BigDays.sfdfT$NARRtime <- (align.time(BigDays.sfdfT$StartTime_UTC, n = (60 * 60 * 3)) - 3600 * 3)
+```
+
+**Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs.**
+```{r, eval = FALSE}
+NARRday = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%Y/%m/%d")
+NARRZtime = format(as.POSIXct(strptime(BigDays.sfdfT$NARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%H")
+
+BigDays.sfdfT <- cbind(BigDays.sfdfT, NARRday, NARRZtime)
+```
+
+**Create a downloadable string of information for the varying NARR times. **
+```{r, eval = FALSE}
+BigDays.sfdfT <- BigDays.sfdfT %>%
+  mutate(YrMoDa = gsub("/", "", NARRday),
+         slug = paste0("merged_AWIP32.",YrMoDa, NARRZtime),
+         slug2 = paste0("merged_AWIP32.",YrMoDa))
+```
+
+**Extract a vector of the big days. Save as a .csv for NARR download. **
+```{r, eval = FALSE}
+bigdays <- BigDays.sfdfT$NARRday
+bigdaytimes <- BigDays.sfdfT$NARRZtime
+x <- cbind(as.character(bigdays), as.character(bigdaytimes))
+write.csv(x, "BigDays.csv")
+```
+
+**Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.**
+```{r, eval = FALSE}
+BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
+BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
+BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+**Get the centroid (central point of the tornado activity) for each big day. **
 ```{r, eval = FALSE}
 BigDayCentroids.df <- st_centroid(BigDays.sfdfT)
 BigDayCentroids.df$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
 BigDayCentroids.df$groupDensity <- BigDayCentroids.df$nT/BigDayCentroids.df$groupArea
 ```
 
-## Download NARR data: 
+**Create a table to show how many big days fall in each start Z time. **
+```{r, eval = FALSE}
+BigDays.sfdfT %>%
+  group_by(NARRZtime) %>%
+  summarize(count = n())
+```
+`Table 4: Total number of big days associated with each Z time.` #CORRECT
 
-Data is downloaded from NCAR's North American Regional Reanalysis (https://rda.ucar.edu/datasets/ds608.0/#!access). It extends from 1-1-1979 to 11-1-2018. Use the NCAR NARR 3-hourly files.  
+Each NARR file contains 434 atmospheric variables. We consider only a small subset of the them representing convective instability and wind shear including the 180 to 0 hPa above ground level (AGL) CAPE and CIN (layer 375, 376), the 0 to 3000 m AGL helicity (layer 323), and the 0 to 6000 m AGL U and V components of storm motion (layer 324, 325). Additionally, we download the U and V components of wind for the 1000 hPa (layer 260, 261) and 500 hPa (layer 117, 118) levels. We compute total storm motion as the square root of the sum of the velocity components squared. We compute the bulk shear as the square root of the sum of the squared differences between the u- and v-components of the wind at 1000 hPa and 500 hPa levels. We choose these variables because they are well known to be associated with tornado development \citep{Brooks1994, JacksonandBrown2009, Brown2002, Craven2002, DeanandSchneider2012, AndersonFrey2018, DoswellandEvans2003, ChengEtAl2016}. 
 
-Spatial Extent: 
-Longitude Range: Westernmost = 148.64E Easternmost = 2.568W
-Latitude Range: Southernmost = 0.897N Northernmost = 85.333N
+**Data is downloaded from NCAR's North American Regional Reanalysis (https://rda.ucar.edu/datasets/ds608.0/#!access). It extends from 1-1-1979 to 11-1-2018. Use the NCAR NARR 3-hourly files.Spatial Extent: Longitude Range: Westernmost = 148.64E Easternmost = 2.568W; Latitude Range: Southernmost = 0.897N Northernmost = 85.333N**
 
 ```{r, eval = FALSE}
 BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
   crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
 ```
 
-The list of all variables can be found here: http://www.emc.ncep.noaa.gov/mmb/rreanl/merged_land_AWIP32.pdf 
+**The list of all variables can be found here: http://www.emc.ncep.noaa.gov/mmb/rreanl/merged_land_AWIP32.pdf **
 
 ```{r, eval = FALSE}
 slug <- BigDays.sfdfT$slug
 slug2 <- BigDays.sfdfT$slug2
 ```
 
-Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.
+**Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.**
 ```{r, eval = FALSE}
 avgCAPE <- numeric()
 avgHLCY <- numeric()
@@ -425,7 +650,7 @@ for(i in 1:length(slug)){
 }
 ```
 
-Add environmental data values to the group day means data frame.
+**Add environmental data values to the group day means data frame.**
 ```{r, eval = FALSE}
 BigDays.sfdfT$avgCAPE <- avgCAPE
 BigDays.sfdfT$avgHLCY <- avgHLCY
@@ -444,7 +669,7 @@ BigDays.sfdfT$maxBS <- maxBS
 BigDays.sfdfT$maxSM <- maxSM
 ```
 
-Scale the variables to make them easier to read and input for models. 
+**Scale the variables to make them easier to read and input for models. **
 ```{r, eval = FALSE}
 BigDays.sfdfT$avgCAPE2 <- BigDays.sfdfT$avgCAPE/1000
 BigDays.sfdfT$avgHLCY2 <- BigDays.sfdfT$avgHLCY/100
@@ -462,6 +687,556 @@ BigDays.sfdfT$maxUSTM2 <- BigDays.sfdfT$maxUSTM/10
 BigDays.sfdfT$maxVSTM2 <- BigDays.sfdfT$maxVSTM/10
 BigDays.sfdfT$maxSM2 <- BigDays.sfdfT$maxSM/10
 ```
+
+Selected and computed NARR variables are available in the form of a 277 by 349 rectangular raster. The corresponding big day convex hull encompassing the tornado genesis locations is used as a spatial mask, and the raster values falling under the mask are reduced to a single value. For the variables CAPE, bulk shear, and helicity, the reduction consists of taking the highest value under the mask. For CIN the reduction consists of taking the smallest value under the mask (Fig.~\ref{May6Environments}). In this way, every big day value of ATP is associated with one value for each of the environmental variables. The single highest (or lowest) value ensures that the unstable air mass is represented. To varying degrees this approach distinguishes the environmental variables when considering extremes in ATP (Table~\ref{TopBottomDays}). This ability to distinguish extremes in ATP is particularly true for bulk shear and, to a lesser extent, CAPE and foreshadows the regression results presented next.
+
+```{r, eval = FALSE}
+BigDays.sfdfT %>%
+  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATE) %>%
+  top_n(n = 3, wt = ATE) %>%
+  arrange(desc(ATE))
+
+BigDays.sfdfT %>%
+  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATE) %>%
+  top_n(n = 3, wt = -ATE) %>%
+  arrange(desc(ATE))
+```
+`Table 5: Single values for the environmental variables on big days. Big days are separated into top three and bottom three groups based on the value of ATP.` #CORRECTED
+
+#######################################
+## Plot Environments for May 6, 2003 ##
+#######################################
+
+```{r}
+BigDays.sfdfT <- BigDays.sfdfT %>%
+ mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
+```
+
+*May 6, 2003 Big Day*
+```{r}
+May6 <- BigDays.sfdfT %>%
+  filter(ID == "200305062624")
+May6 <- st_convex_hull(May6)
+
+May6centroid <- groupDayCentroids.sfdfT %>%
+  filter(ID == "200305062624")
+
+May6tornadoes <- BigDayTornadoes %>% 
+  filter(ID == "200305062624")
+```
+
+*Plot the CAPE, HLCY, and CIN for the May 6, 2003 Big Day. First, read in the raster. *
+```{r}
+ rb <- brick(paste0("/Users/zoeschroder/Desktop/Projects/Tor-clusters/merged_AWIP32.20030506/merged_AWIP32.2003050612")) #<-- this is for varying NARR times
+  CAPE <- raster(rb, layer = 375)
+  HLCY <- raster(rb, layer = 323)
+  CIN <- raster(rb, layer = 376)
+  UGRD500 <- raster(rb, layer = 117) 
+  VGRD500 <- raster(rb, layer = 118) 
+  UGRDsfc <- raster(rb, layer = 293) 
+  VGRDsfc <- raster(rb, layer = 294)     
+  BS <- sqrt(((UGRD500 - UGRDsfc)**2) + ((VGRD500 - VGRDsfc)**2))
+```
+
+**Convective Available Potential energy **
+```{r}
+CAPE_May6 <- crop(CAPE, extent(May6))
+CAPE_extent<- mask(CAPE_May6, May6)
+plot(CAPE_extent)
+
+maxCAPE <- which.max(CAPE_extent) #Returns a pixel number
+
+#Test that this max value equals the one in BigDays.sfdfT
+test <- getValues(CAPE_extent) 
+test<-as.matrix(test, ncol=1)
+```
+
+```{r}
+CAPEmaxpos <- xyFromCell(CAPE_extent, maxCAPE)
+
+xy <- data.frame(CAPEmaxpos)
+CAPE_latlon <- data.frame(lon=xy$x, lat=xy$y)
+print(CAPE_latlon)
+
+CAPE_latlon <- SpatialPoints(CAPE_latlon)
+proj4string(CAPE_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r}
+counties <- us_counties()
+states <- us_states()
+```
+
+```{r, eval = FALSE}
+p1 <- tm_shape(CAPE_extent) +
+  tm_raster(title = "",  n = 6, palette = "Reds") +
+  tm_format(title = expression(paste("CAPE [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
+                   attr.position = c("right", "bottom"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, 0, .1, .18), #bottom, left, top
+                    legend.text.size = 1.3, legend.width = -0.28, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
+#tm_shape(counties) +
+  #tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(May6, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
+tm_shape(CAPE_latlon) + 
+  tm_symbols(size = 1.4, col = "black", shape = 22)
+p1
+```
+
+**Helicity**
+```{r}
+HLCY_May6 <- crop(HLCY, extent(May6))
+HLCY_extent<- mask(HLCY_May6, May6)
+plot(HLCY_extent)
+
+maxHLCY <- which.max(HLCY_extent)
+```
+
+```{r}
+HLCYmaxpos <- xyFromCell(HLCY_extent, maxHLCY)
+
+xy <- data.frame(HLCYmaxpos)
+HLCY_latlon <- data.frame(lon=xy$x, lat=xy$y)
+print(HLCY_latlon)
+
+HLCY_latlon <- SpatialPoints(HLCY_latlon)
+proj4string(HLCY_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r, eval = FALSE}
+p2 <- tm_shape(HLCY_extent) +
+  tm_raster(title = "", n = 5, palette = "Blues") + #"YlGnBu") +
+  tm_format(title = expression(paste("HLCY [",m^2, s^-2, "]")), "World", legend.position = c("right", "bottom"),
+                   attr.position = c("right", "bottom"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
+                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
+#tm_shape(counties) +
+#  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(May6, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
+tm_shape(HLCY_latlon) + 
+  tm_symbols(size = 1.4, col = "black", shape = 22)
+p2
+```
+
+**Convective Inhibition **
+```{r}
+CIN_May6 <- crop(CIN, extent(May6))
+CIN_extent<- mask(CIN_May6, May6)
+plot(CIN_extent)
+
+minCIN <- which.min(CIN_extent)
+```
+
+```{r}
+CINminpos <- xyFromCell(CIN_extent, minCIN)
+
+xy <- data.frame(CINminpos)
+CIN_latlon <- data.frame(lon=xy$x, lat=xy$y)
+print(CIN_latlon)
+
+CIN_latlon <- SpatialPoints(CIN_latlon)
+proj4string(CIN_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r, eval = FALSE}
+p3 <- tm_shape(CIN_extent) +
+  tm_raster(title = "", n =5, palette = "Greens") + #"YlOrBr") +
+  tm_format(title = expression(paste("CIN [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
+                   attr.position = c("right", "bottom"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
+                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
+#tm_shape(counties) +
+#  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(May6, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
+tm_shape(CIN_latlon) + 
+  tm_symbols(size = 1.4, col = "black", shape = 22)
+p3
+```
+
+**Bulk Shear**
+```{r}
+BS_May6 <- crop(BS, extent(May6))
+BS_extent<- mask(BS_May6, May6)
+plot(BS_extent)
+
+maxBS <- which.max(BS_extent)
+```
+
+```{r}
+BSmaxpos <- xyFromCell(BS_extent, maxBS)
+
+xy <- data.frame(BSmaxpos)
+BS_latlon <- data.frame(lon=xy$x, lat=xy$y)
+print(BS_latlon)
+
+BS_latlon <- SpatialPoints(BS_latlon)
+proj4string(BS_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+```{r, eval = FALSE}
+p4 <- tm_shape(BS_extent) +
+  tm_raster(title = "", n = 5, palette = "Purples") +
+  tm_format(title = expression(paste("BS [m ", s^-1, "]")), "World", legend.position = c("right", "bottom"),
+                   attr.position = c("right", "bottom"),
+                   legend.frame = FALSE,
+                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
+                    legend.text.size = 1.3, legend.width = -0.2, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
+#tm_shape(counties) +
+#  tm_borders(col = "grey") +
+  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
+tm_shape(states) +
+  tm_borders() +
+tm_shape(May6, is.master = TRUE, projection = "merc") +
+  tm_borders(col = "black", lwd = 3)  +
+#tm_shape(May6centroid) +
+#  tm_symbols(size = 1.25, col = "black", shape = 24) +
+tm_shape(BS_latlon) + 
+  tm_symbols(size = 1.4, col = "black", shape = 22)
+p4
+```
+
+**Combine into one figure: **
+```{r}
+tmap_arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
+```
+`Figure 4: Environmental conditions at 12 UTC on May 6, 2003. The black line is the spatial extent of the tornado genesis locations and the black triangle is the centroid of the locations. The first tornado in the cluster started at 12:20 UTC. The black square indicates the locations of the highest value of CAPE (3660~J~kg$^{-1}$), the lowest value of CIN ($-$149~J~kg$^{-1}$), the highest value of helicity (308~m$^2$~s$^{-2}$) and the highest value of bulk shear (33~m~s$^{-1}$).`  CHECK THE Z TIME!!!!!
+
+## Quantifying the relationship between ATP and environmental factors
+
+We use our collated data representing 212 big days to regress ATP onto the environmental variables whose values are chosen within the area defined by the tornado cluster as described above. The regression model quantifies the effect of each environmental variable on ATP while holding the other variables constant. Due to the large seasonal variability in ATP (Table~\ref{seasonalATP}), the month of the big day occurrence is included as a random effect (an offset to the intercept term). Environmental variables are considered fixed effects as is the year during which the big day occurred. Year is included as a fixed effect because ATP is increasing over time \citep{ElsnerFrickerSchroder2018}. If year is not included in the model, the increasing trend could confound the influence of the other fixed effects. The coefficient on year is the annual trend.
+
+**Test Average vs Max using Models:**
+```{r}
+m1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo),
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m1) #SIG
+
+m2 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxCAPE2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m2) #SIG max...not avg
+
+m3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxBS2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m3) #SIG max 
+
+m4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxSM2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m4) #SIG max 
+
+m5 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxHLCY2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m5) #SIG max...not avg 
+
+m6 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + minCIN2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(m6) #SIG max...not avg 
+```
+
+*Fit the best model for log(ATP):*
+```{r}
+model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
+                  maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2 ,
+             weights = nT, 
+             data = BigDays.sfdfT)
+
+summary(model1)
+
+model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) +
+                 maxBS2 +  minCIN2  + maxCAPE2 * maxHLCY2,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(model2)
+
+model3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
+                  maxCAPE2 + maxBS2 +  maxHLCY,
+             weights = nT, 
+             data = BigDays.sfdfT)
+summary(model3)
+
+model4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
+                  maxCAPE2 * maxBS2 +  maxHLCY2 + minCIN2 ,
+             weights = nT, 
+             data = BigDays.sfdfT)
+
+summary(model4)
+
+AIC(model1, model2, model3, model4) # model 1 is better...without the interaction
+confint(model1, method = "Wald")
+```
+
+Values of ATP are skewed to the right with most big days having less than 5 TW of ATP. However, the top ten days have more than 30 TW each of ATP with the top day having 221 TW (Table~\ref{BiggestDays}). The distribution of ATP on a log scale is nearly symmetric about the mean value of 9 TW. The median value is 3.2 TW, and the geometric mean is 2.6 TW. So, the model uses the logarithm of ATP as the response variable. Mathematically the  model is given by
+$$
+ \ln(\hbox{ATP}_i) = &\beta_0 + \beta_{\hbox{Year}} \hbox{Year}_i + \beta_{\hbox{CAPE}} \hbox{CAPE}_i \\
+& \beta_{\hbox{Shear}} \hbox{Shear}_i + \beta_{\hbox{Helicity}} \hbox{Helicity}_i + \beta_{\hbox{CIN}} \hbox{CIN}_i + \\
+  & \beta_{\hbox{Month}} (1 | \hbox{Month}_i) + \epsilon_i,
+$$
+where the $\beta_{\hbox{Year}}$, $\beta_{\hbox{CAPE}}$, $\beta_{\hbox{Shear}}$ $\beta_{\hbox{Helicity}}$, $\beta_{\hbox{CIN}}$ and $\beta_{\hbox{Month}}$ are the model coefficients. Month is a random effect as mentioned above so $\beta_{\hbox{Month}}$ is a vector of coefficients with one element for each month of the year. To make interpreting the coefficients easier, we divide the values of CAPE and CIN by 1000, helicity by 100, and bulk shear by 10. The coefficients are determined via an interactive maximum likelihood approach with the {\texttt lmer} function from the {\texttt lme4} package for R \citep{BatesEtAl2015}.
+
+The regression model is best in the sense that it has the lowest Akaike Information Criterion (AIC) score, which measures the overall quality (goodness of fit and simplicity) of the model. Due to a large correlation between bulk shear and relative storm motion (0.59) we retain only bulk shear in the model. We determined that interactions between the environmental variables did not improve the model fit based on higher AIC scores when they were included. We also determined that {\it spatially averaged} values for the environmental variables makes the fit worse. The maximum (and minimum) values within the cluster area provide a better representation of the environmental conditions for the tornadoes on each big day because they are less contaminated by mesoscale and synoptic scale features.
+
+*Table of coefficients.*
+```{r}
+x <- summary(model1)
+xtable(x$coefficients, digits = 3)
+```
+`Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)` #CORRECT
+
+The model has a log-additive structure indicating that the logarithm of ATP is related to the fixed and random effects in an additive way. So the interpretation of the coefficients are given in terms of a percent change per unit change in the effect. The coefficient on the year term ($\beta_{\hbox{Year}}$) indicates an upward trend in per big-day outbreak ATP amounting to 5\% [(2\%, 8\%), 95\% uncertainty interval (UI)] per year holding the environmental variables constant (Table~\ref{CoefTable}). Note that the percent increase is calculated using $(\hbox{e}^{\beta_{Year}} - 1) \times 100\%$. The upward trend is consistent with the results of \cite{ElsnerFrickerSchroder2018} using all tornadoes.
+
+Physically the model coefficients on the environmental variables are reasonable and consistent with expectations given our current understanding of factors that influence tornado activity. Specifically, an increase in ATP is statistically explained by increasing values of CAPE, bulk shear, and helicity and by decreasing values of CIN. Bulk shear has the largest influence on ATP as seen by its corresponding $t$ value. Quantitatively, the coefficient on the CAPE term ($\beta_{\hbox{CAPE}}$) indicates that ATP increases by 29\% [(7\%, 44\%), 95\% UI] for every 1000 J~kg$^{-1}$ increase in CAPE, holding the other variables and year constant. The coefficient on the bulk shear term ($\beta_{\hbox{Shear}}$) indicates that ATP increases by 124\% for every 10 m$^2$~s$^{-2}$ increase in the magnitude of bulk shear. The coefficient on the helicity term ($\beta_{\hbox{Helicity}}$) indicates that ATP increases by 17\% for every 100 m$^{2}$~s$^{-2}$ increase in helicity and the coefficient on the CIN term ($\beta_{\hbox{CIN}}$) indicates that ATP decreases by 9\% for every 1000 J~kg$^{-1}$ increase in CIN, when the other variables are held constant.
+
+The correlation between observed and modeled estimated ATP is a modest 0.33. We compute the conditional standardized residuals \citep{SantosNobre2007} between the actual and estimated values of ATP. The histogram of the residuals is adequately described by a normal distribution and a plot of the residuals as a function of the model estimated values by month shows no apparent pattern (Fig.~\ref{ModelResiduals}) both indicative of an adequate model.
+
+```{r}
+p1 <- ggplot(model1.df, aes(x = .scresid)) +
+  geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
+  xlab("Standardized Residual") + ylab("Frequency") +
+  ggtitle("A") +
+  theme_minimal() + theme(text = element_text(size=25))
+
+p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^12, y = .scresid, color = factor(Mo))) +
+         geom_point(size = 5) +
+         scale_x_log10() +
+         scale_color_discrete(name = "Month") +
+  xlab("Predicted ATP [TW]") + ylab("Standardized Residual") +
+  ggtitle("B") +
+  theme_minimal() + theme(text = element_text(size=26))
+grid.arrange(p1, p2, ncol = 2)
+
+#p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
+```
+`Figure 5: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP.` #CORRECT
+
+We illustrate the model by estimating ATP across a range of CAPE and bulk shear values with CIN and helicity values set to their respective means ($-$200 J~kg$^{-1}$ and 40 m$^2$~s$^{-2}$), with year set 2017, and with month set to April (Figure~\ref{ATEPredictions}). Year is set to 2017 because it is the last year in the dataset and month is set to April because it is the month during which ATP is on average the highest. Estimates show that ATP increases with increasing values of CAPE and bulk shear. With a CAPE of 250~J~kg$^{-1}$ and a bulk shear of 25~m~s$^{-1}$ the model estimates an ATP of 2.82 TW. In comparison, with a CAPE of 3000~J~kg$^{-1}$ and a bulk shear of 15~m~s$^{-1}$ the model estimates an ATP of 2.56 TW. In contrast, with a CAPE of 4000~J~kg$^{-1}$ and a bulk shear of 40~m~s$^{-1}$, the model estimates an ATP of 24.93 TW. We can estimate values of ATP for other values of the predictors.
+
+
+*Get specific values on the prediction of ATP plot. *
+
+```{r}
+#4000 CAPE and 40 BS
+mpred1 <- exp(predict(model1, data.frame(maxCAPE2 = 4, maxBS2 = 4, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#24.93 
+
+#250 CAPE and 25 BS
+mpred2 <- exp(predict(model1, data.frame(maxCAPE2 = 0.25, maxBS2 = 2.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#2.82
+
+#0 CAPE and 0 BS
+exp(predict(model1, data.frame(maxCAPE2 = 0, maxBS2 = 0, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#0.35
+
+#3000 CAPE and 15 BS
+mpred3 <- exp(predict(model1, data.frame(maxCAPE2 = 3, maxBS2 = 1.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
+#2.56
+
+mpred1 <- c(4000/1000, 40/10, 30.85)
+mpred2 <- c(250/1000, 25/10, 28.67)
+mpred3 <- c(3000/1000, 15/10, 28.57)
+test <- as.data.frame(rbind(mpred1, mpred2, mpred3))
+colnames(test) <- c("maxCAPE2", "maxBS2", "value")
+```
+
+*Create a prediction grid. *
+```{r}
+library(reshape2)
+pgrid <- expand.grid(maxCAPE2 = seq(.1, 5.1, length = 100),
+                     maxBS2 = seq(1.2, 4.5, length = 100),
+                     Year = 2017, 
+                     minCIN2 = -2,
+                     maxHLCY2 = 4, 
+                     Mo = 4)
+pgrid$pre <- predict(model1, newdata = pgrid, type = "response")
+
+pgridL = melt(pgrid, id.vars = c("maxCAPE2", "maxBS2"), measure.vars = "pre")
+
+#x<- matrix(pre, nrow = 5001, byrow = FALSE)
+e <- c(12, 12.5, 13, 13.5)
+
+ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
+  geom_tile( show.legend = TRUE) +
+ # geom_contour(aes(z = value), color = "green") + 
+  scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32)) +
+  theme_bw() +
+  theme(text = element_text(size=15), legend.position="bottom", legend.key.width = unit(1.75, "cm"), 
+        legend.background = element_rect(size=0.5)) +
+  xlab("CAPE [J/kg]") + 
+  ylab("Bulk Shear [m/s]") +
+  labs(fill = "ATP [TW]") + geom_point(data = test, size = 4) 
+#e <- c(12,  12.5, 13, 13.5)
+#ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
+ # geom_raster(show.legend = TRUE) +
+ # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
+```
+`Figure 6: Predictions of ATP across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  ` #CORRECT
+
+Figure~\ref{ActualvsPredict} shows the actual versus estimated ATP for the 212 big tornado days. Lighter blue points, which tend to be associated with more ATP, indicate more casualties (death plus direct injuries). Increases in CAPE and bulk shear lead to more and stronger tornadoes with increased potential for casualties. The points tend to fall along a line from lower left to upper right but with a slope less than one.
+
+Observed versus prediction plot for ATP.
+```{r}
+# .scresid : standardized conditional residuals
+model1.df <- fortify(model1)
+model1.df$preATP <- exp(predict(model1))
+
+model1.df <- model1.df %>%
+   mutate(density = nT/HullArea)
+
+model1.over <- model1.df %>%
+  filter(.scresid >= 0)
+model1.under <- model1.df %>%
+  filter(.scresid < 0)
+
+model1.over <- model1.over[order(model1.over$GroupDayCas),]
+model1.under <- model1.under[order(model1.under$GroupDayCas),]
+
+ggplot() +
+  geom_point(data = model1.under, aes(x = GroupDayTotalED/10^12, y = preATP/10^12, fill = log10(GroupDayCas + 1)), shape = 21, size = 8, show.legend = FALSE, stroke = 0) +
+      scale_fill_gradient(low = "pink", high = "firebrick3") +
+      geom_point(data = model1.over, aes(x = GroupDayTotalED/10^12, y = preATP/10^12, colour = log10(GroupDayCas + 1)),  size = 8, show.legend = FALSE, stroke = 0.5) +
+        scale_colour_gradient(low = "lightskyblue", high = "blue") +
+      geom_abline(slope = 1, size = 1.25) + 
+      scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
+      scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
+      ylab("Estimated ATP [TW]") + xlab("ATP [TW]") +
+      theme_minimal() + theme(text = element_text(size=15)) 
+```
+`Figure 7: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. `
+
+Big tornado days that have more ATP than what the model estimates are points that fall to the right of the diagonal line. We note that April 27, 2011, and April 26, 2011, are examples of days with more ATP than estimated by the model, and April 19, 2011, and February 20, 2014, are examples of days with less ATP than estimated by the model. We plot the convex hull of the tornado genesis locations on the days with the most over- and under-estimated ATP (Fig.~\ref{OverUnderPredictions}). There is no distinction in the size of the areas but cases of under estimation are noted across the central Plains where there are no cases of over estimation.
+
+*Create a data frame of the over predicted big days. *
+```{r}
+dates<- c( "2011-04-19", "2014-02-20", "2017-04-03", "2003-04-24")
+overpreddays <- BigDays.sfdfT %>%
+  filter(as.character(cDate) %in% dates)  
+```
+
+*Create a data frame of the under predicted big days. *
+```{r}
+# underdays <- c("2003-05-04", "2008-02-05", "2011-04-27") 
+# underpreddays <- BigDays.sfdfT %>%
+#  filter(cDate %in% overdays)    **Returning nothing
+
+dates <- c("1999-05-03", "2011-04-27", "2011-04-26", "2004-05-22", "2004-11-23")
+underpreddays <- BigDays.sfdfT %>%
+  filter(as.character(cDate) %in% dates) 
+```
+
+*Create the convex hulls for the over and under predicted. *
+```{r}
+overpreddays <- st_as_sf(overpreddays)
+overpred <- st_convex_hull(overpreddays)
+overpred <- st_transform(overpreddays, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+
+underpreddays <- st_as_sf(underpreddays)
+underpred <- st_convex_hull(underpreddays)
+underpred <- st_transform(underpreddays, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+*Map the over vs under predicted big days. Color blue and magenta.*
+```{r}
+stateBorders <- st_transform(stateBorders, 
+                            crs = st_crs(counties.sf))
+overpred <- st_transform(overpred, crs = st_crs(stateBorders))
+underpred <- st_transform(underpred, crs = st_crs(stateBorders))
+
+tm_shape(stateBorders) + 
+  tm_borders(col = "gray70") +
+  tm_compass(position = c("right", "bottom"), size = 5, fontsize = 1.1, color.dark = "gray70") + 
+  tm_scale_bar(position = c("left", "bottom"), width = 0.5, size = 1.4, color.dark = "gray70") +
+  tm_layout(inner.margins = c(.2, .05, .05, .05)) +
+#tm_shape(counties.sf) +
+#  tm_borders(col = "gray50", alpha = .3) +
+tm_shape(overpred) +
+  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "blue") + 
+  tm_fill(col = "blue") +
+tm_shape(underpred, is.master = TRUE, projection = "merc") +
+  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "firebrick3") +
+  tm_fill(col = "firebrick3")
+```
+`Figure 8: Areas defining the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATP.` #CORRECT
+
+The average number of tornadoes per unit area during big days that are most under-estimated is 2.3 per square kilometer compared to 1.6 per square meter during big days that are most over-estimated. The average area of the under-estimated days is 52.8 square kilometers compared to 37.0 square kilometers for over-estimated days. This implies that the model might be improved by including environmental factors that explain the localized efficiency of tornado production.
+
+```{r}
+underden <- underpred %>%
+  mutate(density = nT/HullArea)
+overden <- overpred %>%
+  mutate(density = nT/HullArea)
+
+#Convert from tornado/m2 to tornadoes/km2
+u <- underden$density *10**10
+mean(u)
+o <- overden$density *10**10
+mean(o)
+
+t.test(as.numeric(u),as.numeric(o))
+```
+
+Get the average hull area in units of km^2
+```{r}
+mean(underden$HullArea /10**10) 
+#52.82478 [km^2]
+mean(overden$HullArea /10**10)
+#37.01303 [km^2]
+```
+
+## Summary and Conclusion
+
+April 27, 2011 was the biggest day in the largest, costliest, and one of the deadliest tornado outbreaks ever recorded in the United States \citep{Knox2013}. The multi-day event affected 21 states from Texas to New York. Recent studies show an increasing tendency for a higher proportion of tornadoes occurring in large outbreaks. To shed light on why this might be happening here we quantified the relationship between convective environmental variables and accumulated tornado power (ATP) during days with many tornadoes that occurred in large multi-day clusters.
+
+First, using single-linkage clustering and filtering we identified all days over the period 1994--2017 having ten or more tornadoes that occurred in multi-day clusters having 30 or more tornadoes. Then, for each big day, we computed ATP as the sum of the power dissipated over all tornadoes occurring on that day (starting at 12 UTC). Next, we used reanalysis data to identify the extremes in CAPE, CIN, bulk shear, and helicity over the area defined by the tornado genesis locations and by the time before the occurrence of the first tornado. Finally, for the set of 212 big days, the logarithm of ATP was regressed onto the environmental factors and year using a mixed effects model with the month of the day as a random effect. Results showed an upward trend in ATP at a rate of 5\% per year. They also showed that, on average, ATP increased with additional bulk shear, CAPE, and helicity and decreased with additional CIN. Model residuals were analyzed to determine the adequacy of the model and to identify the largest under and over estimations.
+
+The major conclusions are:
+\begin{itemize}
+\item An objective technique can reliably identify known tornado clusters.
+\item Accumulated tornado power (ATP) is a useful measure of cluster severity.
+\item On average cluster severity increases by 124\% for every 10 m$^2$s$^{-2}$ increase in bulk shear holding the other variables constant.
+\item On average cluster severity increases by 29\% for every 1000 J~kg$^{-1}$ increase in CAPE holding the other variables constant.
+\item The number of tornadoes per unit area is larger on days when the model under estimates cluster severity.
+\end{itemize}
+
+Since bulk shear has the largest influence on ATP, long-term changes to it might help explain the documented changes in tornado activity. The correlation between ATP and model estimated ATP is a modest 0.33, but this level of correspondence indicates some practical value to the approach (see \cite{CohenEtAl2018}). Results from this study are limited by sample size (we only had 212 big days) and by an exclusive focus on the last 20 years of a much longer tornado record. They are also limited by the quality of the NARR data, which tends to unrealistically favor environments for tornadoes in certain convective setups \citep{GensiniandAshley2011, GensiniEtAl2014, AllenEtAl2015}. The study could be improved by considering more cases from earlier years. The cost of including earlier data would be more uncertainty on the estimates of power dissipation. The study can almost certainly be improved by including other environmental factors in the model, especially ones that are related to the convective mode and to the efficiency of tornado production. Future work will examine the spatial variation in the factors affecting cluster severity and will quantify the relationship between cluster aggregated casualties and the environmental factors controlling for how many people were within the `outbreak' area.
+
+
+
+
+################################
+## Part 2: Environmental data ##
+################################
+
+## Get the NARR time
+
+## Download NARR data: 
+
+
 
 Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
 ```{r}
@@ -521,23 +1296,6 @@ tm_shape(sfdf2) +
   tm_layout(panel.labels = paste(BigDays.sfdfT$Name2, BigDays.sfdfT$Name), panel.label.size = 1.3, panel.label.bg.color = "grey90") 
 ```
 
-Distribution of the number of days each group lasts.
-```{r, eval = FALSE}
-dfnD <- as.data.frame(Groups.sfdfT) %>%
-  arrange(desc(nD))
-table(dfnD$nD)
-(151-46)/151 * 100 
-
-dfnD <- as.data.frame(Groups.sfdfT) %>%
-  arrange(desc(Year))
-table(dfnD$Year)
-
-as.data.frame(Groups.sfdfT) %>%
-  group_by(nD) %>%
-  summarize(tot_events = n(),
-            tot_torn = sum(nT))
-```
-**Table 1: The total number of large groups and tornadoes by duration. ** #CORRECT
 There are 46 groups lasting only one day, 81 groups lasting two days, etc. 69% of the groups are multi-day events.
 
 Frequency by month of the start day of multi-day groups of at least three days in length.
@@ -551,85 +1309,10 @@ as.data.frame(Groups.sfdfT) %>%
   count(Month, nD) %>%
   mutate(prop = prop.table(n))
 ```
-
-Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).
-```{r}
-groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
-groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
-groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
-```
-
-Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.
-```{r, eval = FALSE}
-BigDays.sfdfT <- st_convex_hull(BigDays.sfdfT)
-BigDays.sfdfT$HullArea <- st_area(BigDays.sfdfT)
-BigDays.sfdfT <- st_transform(BigDays.sfdfT, 
-  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-Map of the longest tornado outbreak. Tornado points colored by cDate. 
-
-```{r, eval = FALSE}
-longestgroup <- Groups.sfdfT %>%
-  filter(groupNumber == 3075)
-longestgroup <- st_convex_hull(longestgroup)
-
-#longestdays <- BigDays.sfdfT %>%
- # filter(groupNumber == 3075)
-
-longestdaytorns <- GroupTornadoes %>%
-  filter(groupNumber == 3075)
-```
-
-```{r, eval = FALSE}
-states.sf <- us_states()
-counties.sf <- us_counties()
-
-longestdaytorns <- longestdaytorns %>%
-  mutate(ID = as.factor(gsub("-", "", cDate)))
-
-longestdaytorns$ID <- factor(longestdaytorns$ID, levels = rev(levels(longestdaytorns$ID)))
-```
-
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "gray70") +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-#tm_shape(counties.sf) +
-#  tm_borders(col = "gray40", alpha = .3) +
-tm_shape(longestgroup, projection = "merc", is.master = TRUE) + 
-  tm_borders(col = "gray15", alpha = 1, lwd = 5) +
-  tm_scale_bar(width = .6, size = 1.5, lwd = 2, color.dark = "gray70") +
-  tm_compass(size = 7, lwd = 2, fontsize = 1.2, color.dark = "gray70") + 
-    tm_format("World", legend.position = c("left", "top"),
-                    attr.position = c("left", "top"),
-                   legend.frame = FALSE,
-                   #title = "Longest Group of Tornadoes",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.04, .29, .1, .29)) +
-  tm_layout(legend.bg.color = "white", legend.text.size = .75) +
-tm_shape(longestdaytorns) +
-  tm_symbols(size = 5, col = "ID", n = 5, palette = "seq", title.col = "September", labels = c("8th", "7th", "6th", "5th", "4th")) + 
-  tm_layout(legend.title.size = 2.1,
-            legend.position = c("right", "bottom"), 
-            legend.stack = "horizontal",
-            legend.frame = FALSE, 
-            legend.text.size = 1.8, legend.width = -0.3, aes.palette = list(seq = "-Greys"))
-```
-**Figure 1: The September 4 – 8, 2004 event has the longest duration of all tornado groups. The black line is the hull (spatial extent) of the entire group. Each dot is colored by a different big day. **  #CORRECT
   
 ##################
 # Stats and Maps #
 ##################
-
-Top 10 Big Tornado Days: 
-```{r, eval = FALSE}
-BigDays.sfdfT %>%
-  top_n(n = 10, wt = nT) %>%
-  arrange(desc(nT))
-```
-**Table 2: The top ten big days in the largest tornado groups. ATP is the accumulated tornado power on a big day. ** #CORRECT
 
 Pecentage of all casualties and fatalities occurring on the big days in the large groups.
 ```{r, eval = FALSE}
@@ -649,329 +1332,9 @@ table(BigDays.sfdfT$Month)
 
 61% of all big days in large groups occur during April, May, and June.
 
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
-```{r, eval = FALSE}
-counties.sf <- st_transform(counties.sf, 
-                            crs = st_crs(BigDays.sfdfT))
 
-stateBorders <- st_transform(stateBorders, 
-                            crs = st_crs(BigDays.sfdfT))
-```
 
-Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
 
-```{r, eval = FALSE}
-May30 <- BigDays.sfdfT %>%
-  filter(cDate == "2004-05-30")
-May30 <- st_convex_hull(May30)
-
-May30centroid <- groupDayCentroids.sfdfT %>%
-  filter(cDate == "2004-05-30")
-
-May30tornadoes <- BigDayTornadoes %>% 
-  filter(groupNumber == May30centroid$groupNumber)
-
-May30tornadoes <- May30tornadoes %>%
-  mutate(Hour2 = ifelse(Hour <= 6, Hour + 24, Hour))
-```
-
-Make a map of the May 30 tornado day. Obtain the state and county boundaries from the **USAboundaries** package. 
-```{r, eval = FALSE}
-May30tornadoes$Hour2 <- cut(May30tornadoes$Hour2, breaks=c(6,12,18,24,30))
-
-tm_shape(stateBorders) + 
-  tm_borders(col = "gray70", alpha = 1) +
-  tm_scale_bar(width = .6, size = 1.5, lwd = 2, color.dark = "gray70") +
-  tm_compass(size = 7, fontsize = 1.2, lwd = 2, color.dark = "gray70") + 
-  tm_layout(legend.bg.color = "white", 
-            legend.text.size = .75, 
-            attr.position = c("right", "top"), 
-            inner.margins = c(.1, .2, .1, .2)) +
-#tm_shape(counties.sf) +
-#  tm_borders(col = "gray40", alpha = .3) +
-#  tm_scale_bar(width = 8, size = 8, color.dark = "gray70") +
-  #tm_format("World", legend.position = c("right", "top"),
-#                   attr.position = c("right", "top"),
-#                   legend.frame = FALSE,
-                   #title = "May 30th Tornado Group",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
- #                  inner.margins = c(.2, .2, .2, .2)) +
-tm_shape(May30, is.master = TRUE, projection = "merc") +
-  tm_borders(col = "black", lwd = 3) +
-tm_shape(May30tornadoes) +
-  tm_symbols(size = 5, col = "Hour2", palette = "Greys", title.col = "Time [CST]", labels = c("6 to 12", "12 to 18", "18 to 24", "0 to 6")) +
-    tm_layout(legend.title.size = 1.8,
-            legend.position = c("right", "bottom"), 
-            legend.stack = "horizontal",
-            legend.frame = FALSE, 
-            legend.text.size = 1.6, legend.width = -0.2) +
-tm_shape(May30centroid) +
-  tm_symbols(size = 1.25, col = "black", shape = 24) 
-```
-**Figure 2: May 30, 2004, is a big tornado day characterized by 88 tornadoes. Each dot represents a tornado genesis location and is colored by the hour of the tornado. The black triangle is the geographic center of the genesis location. The black line defines the minimum convex polygon around the genesis locations (convex hull).** #CORRECT
-
-```{r, eval = FALSE}
-BigDays.sfdfT %>%
-  top_n(n = 3, wt = ATP) %>%
-  arrange(desc(ATP))
-
-BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATP) %>%
-  arrange(desc(ATP))
-```
-**Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. ** #CORRECTED
-
-```{r}
-BigDays.sfdfT <- BigDays.sfdfT %>%
- mutate(ID = paste0(gsub("-", "", cDate), groupNumber))
-```
-
-May 6, 2003 Big Day
-```{r}
-May6 <- BigDays.sfdfT %>%
-  filter(ID == "200305062624")
-May6 <- st_convex_hull(May6)
-
-May6centroid <- groupDayCentroids.sfdfT %>%
-  filter(ID == "200305062624")
-
-May6tornadoes <- BigDayTornadoes %>% 
-  filter(ID == "200305062624")
-```
-
-Plot the CAPE, HLCY, and CIN for the April 27, 2011 Big Day. First, read in the raster. 
-```{r}
- rb <- brick(paste0("/Users/zoeschroder/Desktop/Projects/Tor-clusters/merged_AWIP32.20030506/merged_AWIP32.2003050612")) #<-- this is for varying NARR times
-  CAPE <- raster(rb, layer = 375)
-  HLCY <- raster(rb, layer = 323)
-  CIN <- raster(rb, layer = 376)
-  UGRD500 <- raster(rb, layer = 117) 
-  VGRD500 <- raster(rb, layer = 118) 
-  UGRDsfc <- raster(rb, layer = 293) 
-  VGRDsfc <- raster(rb, layer = 294)     
-  BS <- sqrt(((UGRD500 - UGRDsfc)**2) + ((VGRD500 - VGRDsfc)**2))
-```
-
-Project and transform the raster. Extract the environmental variables to the hull of the big day. 
-```{r}
-CAPE_May6 <- crop(CAPE, extent(May6))
-CAPE_extent<- mask(CAPE_May6, May6)
-plot(CAPE_extent)
-
-maxCAPE <- which.max(CAPE_extent) #Returns a pixel number
-
-#Test that this max value equals the one in BigDays.sfdfT
-test <- getValues(CAPE_extent) 
-test<-as.matrix(test, ncol=1)
-```
-
-Extract the maximum value of the CAPE raster for this big day. 
-```{r}
-CAPEmaxpos <- xyFromCell(CAPE_extent, maxCAPE)
-
-xy <- data.frame(CAPEmaxpos)
-CAPE_latlon <- data.frame(lon=xy$x, lat=xy$y)
-print(CAPE_latlon)
-
-CAPE_latlon <- SpatialPoints(CAPE_latlon)
-proj4string(CAPE_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-Plot the CAPE, centroid, and max value point in a raster. 
-```{r}
-counties <- us_counties()
-states <- us_states()
-```
-
-```{r, eval = FALSE}
-p1 <- tm_shape(CAPE_extent) +
-  tm_raster(title = "",  n = 6, palette = "Reds") +
-  tm_format(title = expression(paste("CAPE [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
-                   attr.position = c("right", "bottom"),
-                   legend.frame = FALSE,
-                   inner.margins = c(.1, 0, .1, .18), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.28, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
-#tm_shape(counties) +
-  #tm_borders(col = "grey") +
-  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
-tm_shape(states) +
-  tm_borders() +
-tm_shape(May6, is.master = TRUE, projection = "merc") +
-  tm_borders(col = "black", lwd = 3)  +
-#tm_shape(May6centroid) +
-#  tm_symbols(size = 1.25, col = "black", shape = 24) +
-tm_shape(CAPE_latlon) + 
-  tm_symbols(size = 1.4, col = "black", shape = 22)
-p1
-```
-
-```{r}
-HLCY_May6 <- crop(HLCY, extent(May6))
-HLCY_extent<- mask(HLCY_May6, May6)
-plot(HLCY_extent)
-
-maxHLCY <- which.max(HLCY_extent)
-```
-
-Extract the maximum value of the HLCY raster for this big day. 
-```{r}
-HLCYmaxpos <- xyFromCell(HLCY_extent, maxHLCY)
-
-xy <- data.frame(HLCYmaxpos)
-HLCY_latlon <- data.frame(lon=xy$x, lat=xy$y)
-print(HLCY_latlon)
-
-HLCY_latlon <- SpatialPoints(HLCY_latlon)
-proj4string(HLCY_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-```{r, eval = FALSE}
-p2 <- tm_shape(HLCY_extent) +
-  tm_raster(title = "", n = 5, palette = "Blues") + #"YlGnBu") +
-  tm_format(title = expression(paste("HLCY [",m^2, s^-2, "]")), "World", legend.position = c("right", "bottom"),
-                   attr.position = c("right", "bottom"),
-                   legend.frame = FALSE,
-                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
-#tm_shape(counties) +
-#  tm_borders(col = "grey") +
-  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
-tm_shape(states) +
-  tm_borders() +
-tm_shape(May6, is.master = TRUE, projection = "merc") +
-  tm_borders(col = "black", lwd = 3)  +
-#tm_shape(May6centroid) +
-#  tm_symbols(size = 1.25, col = "black", shape = 24) +
-tm_shape(HLCY_latlon) + 
-  tm_symbols(size = 1.4, col = "black", shape = 22)
-p2
-```
-
-```{r}
-CIN_May6 <- crop(CIN, extent(May6))
-CIN_extent<- mask(CIN_May6, May6)
-plot(CIN_extent)
-
-minCIN <- which.min(CIN_extent)
-```
-
-Extract the maximum value of the CIN raster for this big day. 
-```{r}
-CINminpos <- xyFromCell(CIN_extent, minCIN)
-
-xy <- data.frame(CINminpos)
-CIN_latlon <- data.frame(lon=xy$x, lat=xy$y)
-print(CIN_latlon)
-
-CIN_latlon <- SpatialPoints(CIN_latlon)
-proj4string(CIN_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-```{r, eval = FALSE}
-p3 <- tm_shape(CIN_extent) +
-  tm_raster(title = "", n =5, palette = "Greens") + #"YlOrBr") +
-  tm_format(title = expression(paste("CIN [J ", kg^-1, "]")), "World", legend.position = c("right", "bottom"),
-                   attr.position = c("right", "bottom"),
-                   legend.frame = FALSE,
-                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.25, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
-#tm_shape(counties) +
-#  tm_borders(col = "grey") +
-  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
-tm_shape(states) +
-  tm_borders() +
-tm_shape(May6, is.master = TRUE, projection = "merc") +
-  tm_borders(col = "black", lwd = 3)  +
-#tm_shape(May6centroid) +
-#  tm_symbols(size = 1.25, col = "black", shape = 24) +
-tm_shape(CIN_latlon) + 
-  tm_symbols(size = 1.4, col = "black", shape = 22)
-p3
-```
-
-```{r}
-BS_May6 <- crop(BS, extent(May6))
-BS_extent<- mask(BS_May6, May6)
-plot(BS_extent)
-
-maxBS <- which.max(BS_extent)
-```
-
-Extract the maximum value of the BS raster for this big day. 
-```{r}
-BSmaxpos <- xyFromCell(BS_extent, maxBS)
-
-xy <- data.frame(BSmaxpos)
-BS_latlon <- data.frame(lon=xy$x, lat=xy$y)
-print(BS_latlon)
-
-BS_latlon <- SpatialPoints(BS_latlon)
-proj4string(BS_latlon) = CRS("+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-```{r, eval = FALSE}
-p4 <- tm_shape(BS_extent) +
-  tm_raster(title = "", n = 5, palette = "Purples") +
-  tm_format(title = expression(paste("BS [m ", s^-1, "]")), "World", legend.position = c("right", "bottom"),
-                   attr.position = c("right", "bottom"),
-                   legend.frame = FALSE,
-                   inner.margins = c(.1, 0, .1, .15), #bottom, left, top
-                    legend.text.size = 1.3, legend.width = -0.2, legend.title.size=1.5, legend.bg.color = "white", title.size = 2) +
-#tm_shape(counties) +
-#  tm_borders(col = "grey") +
-  tm_scale_bar(width = 0.3, size = 1.3, position = c("right", "top"), color.dark = "gray70") +
-tm_shape(states) +
-  tm_borders() +
-tm_shape(May6, is.master = TRUE, projection = "merc") +
-  tm_borders(col = "black", lwd = 3)  +
-#tm_shape(May6centroid) +
-#  tm_symbols(size = 1.25, col = "black", shape = 24) +
-tm_shape(BS_latlon) + 
-  tm_symbols(size = 1.4, col = "black", shape = 22)
-p4
-```
-
-Combine into one figure: 
-```{r}
-tmap_arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
-```
-**Figure 4: Environmental conditions at 12 UTC on May 6, 2003. The black line is the spatial extent of the tornado genesis locations and the black triangle is the centroid of the locations. The first tornado in the cluster started at 12:20 UTC. The black square indicates the locations of the highest value of CAPE (3660~J~kg$^{-1}$), the lowest value of CIN ($-$149~J~kg$^{-1}$), the highest value of helicity (308~m$^2$~s$^{-2}$) and the highest value of bulk shear (33~m~s$^{-1}$).** #CORRECTED
-
-Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
-```{r}
-tm_shape(stateBorders) + 
-  tm_borders(col = "gray70") +
-  tm_compass(size = 7, position = c("left", "bottom"), fontsize = 1.2, lwd = 2, color.dark = "gray70") + 
-  tm_scale_bar(width = 0.6, size = 1.5, lwd = 2, color.dark = "gray70") +
-#tm_shape(counties.sf) +
-#  tm_borders(col = "gray40", alpha = .3) +
-#  tm_compass(position = c("left", "bottom"), color.dark = "gray70") + 
-#  tm_scale_bar(width = 8, size = 8, color.dark = "gray70") +
-  tm_format("World",
-                   #title = "Big Day Centroids",
-                   #title.size = 1.3,
-                   #title.position = c("left", "TOP"),
-                   inner.margins = c(.1, .1, .1, .1)) +
-tm_shape(groupDayCentroids.sfdfT, is.master = TRUE, projection = "merc") +
-  tm_symbols(col = "nT", n = 4, 
-             palette = c("lightsalmon", "salmon3", "red", "red4"), legend.col.show = FALSE,
-             size = "nT",
-             shape =24, 
-             scale = 4, legend.size.show = FALSE) + 
-  tm_add_legend("symbol", title = "Count", shape = 24,
-                col = c("lightsalmon", "salmon3", "red", "red4"), 
-                size = c(.75, 1, 1.25, 1.5), 
-                labels = c("10 to 50", "50 to 100", "100 to 150", "150 to 200")) +
-  tm_layout(legend.title.size=1.8, 
-            legend.text.size = 1.6,
-            legend.position = c("right","top"),
-            legend.stack = "horizontal",
-            legend.bg.color = "white",
-            legend.frame = FALSE, 
-            legend.width = -0.25)
-``` 
-**Figure 3: Centroids of genesis locations occurring on big days in large groups. The triangles are sized by the number of tornadoes on that day.** #CORRECT
 
 Time series graphs
 ```{r}
@@ -1089,31 +1452,6 @@ BigDays.sfdfT %>%
   top_n(n = 10) %>%
   arrange(desc(ATP))
 ```
-Use a Spearman's correlation to quantify the relationship between ATP and the number of tornadoes.  
-
-```{r}
-cor.test(x = BigDays.sfdfT$ATP, 
-         y = BigDays.sfdfT$nT, 
-         method = 'spearman')
-```
-Spearman's rank correlation between ATP and number of tornadoes is .633
-
-```{r}
-BigDays.sfdfT %>%
-  group_by(Month) %>%
-  summarize(avgATP = mean(ATP),
-            nT = sum(nT),
-            nBD = n())
-
-Groups.sfdfT %>%
-  top_n(n = 10, wt = nT) %>%
-  arrange(desc(nT))
-
-BigDays.sfdfT %>%
-  top_n(n = 10, wt = nT) %>%
-  arrange(desc(nT))
-```
-**Table 5: Seasonal variation in ATP (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. ** #CORRECT
 
 Time series of annual number of big days in large groups and the annual average ATP across those days.
 ```{r}
@@ -1227,70 +1565,6 @@ BigDays.sfdfT %>%
             nT = sum(nT))
 ```
 
-Models:
-```{r}
-m1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo),
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m1) #SIG
-
-m2 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxCAPE2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m2) #SIG max...not avg
-
-m3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxBS2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m3) #SIG max 
-
-m4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxSM2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m4) #SIG max 
-
-m5 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + maxHLCY2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m5) #SIG max...not avg 
-
-m6 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + minCIN2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(m6) #SIG max...not avg 
-```
-
-Fit the best model for log(ATP):
-```{r}
-model1 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
-                  maxCAPE2 + maxBS2 +  maxHLCY2 + minCIN2 ,
-             weights = nT, 
-             data = BigDays.sfdfT)
-
-summary(model1)
-
-model2 <- lmer(log(GroupDayTotalED) ~  I(Year - 2004) + (1|Mo) +
-                 maxBS2 +  minCIN2  + maxCAPE2 * maxHLCY2,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(model2)
-
-model3 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
-                  maxCAPE2 + maxBS2 +  maxHLCY,
-             weights = nT, 
-             data = BigDays.sfdfT)
-summary(model3)
-
-model4 <- lmer(log(GroupDayTotalED) ~ I(Year - 2004) + (1|Mo) + 
-                  maxCAPE2 * maxBS2 +  maxHLCY2 + minCIN2 ,
-             weights = nT, 
-             data = BigDays.sfdfT)
-
-summary(model4)
-
-AIC(model1, model2, model3, model4) # model 1 is better...without the interaction
-confint(model1, method = "Wald")
-```
 
 ```{r, eval=FALSE}
 df2 <- BigDays.sfdfT %>%
@@ -1316,71 +1590,6 @@ AIC(model2)
 confint(model2, method = "Wald")
 ```
 
-Get specific values on the prediction of ATP plot. 
-
-```{r}
-#4000 CAPE and 40 BS
-mpred1 <- exp(predict(model1, data.frame(maxCAPE2 = 4, maxBS2 = 4, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
-#24.93 
-
-#250 CAPE and 25 BS
-mpred2 <- exp(predict(model1, data.frame(maxCAPE2 = 0.25, maxBS2 = 2.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
-#2.82
-
-#0 CAPE and 0 BS
-exp(predict(model1, data.frame(maxCAPE2 = 0, maxBS2 = 0, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
-#0.35
-
-#3000 CAPE and 15 BS
-mpred3 <- exp(predict(model1, data.frame(maxCAPE2 = 3, maxBS2 = 1.5, Year = 2017, Mo = 4, minCIN2 = -2, maxHLCY2 = 4)))/10^12
-#2.56
-
-mpred1 <- c(4000/1000, 40/10, 30.85)
-mpred2 <- c(250/1000, 25/10, 28.67)
-mpred3 <- c(3000/1000, 15/10, 28.57)
-test <- as.data.frame(rbind(mpred1, mpred2, mpred3))
-colnames(test) <- c("maxCAPE2", "maxBS2", "value")
-```
-
-Create a prediction grid. 
-```{r}
-library(reshape2)
-pgrid <- expand.grid(maxCAPE2 = seq(.1, 5.1, length = 100),
-                     maxBS2 = seq(1.2, 4.5, length = 100),
-                     Year = 2017, 
-                     minCIN2 = -2,
-                     maxHLCY2 = 4, 
-                     Mo = 4)
-pgrid$pre <- predict(model1, newdata = pgrid, type = "response")
-
-pgridL = melt(pgrid, id.vars = c("maxCAPE2", "maxBS2"), measure.vars = "pre")
-
-#x<- matrix(pre, nrow = 5001, byrow = FALSE)
-e <- c(12, 12.5, 13, 13.5)
-
-ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
-  geom_tile( show.legend = TRUE) +
- # geom_contour(aes(z = value), color = "green") + 
-  scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32)) +
-  theme_bw() +
-  theme(text = element_text(size=15), legend.position="bottom", legend.key.width = unit(1.75, "cm"), 
-        legend.background = element_rect(size=0.5)) +
-  xlab("CAPE [J/kg]") + 
-  ylab("Bulk Shear [m/s]") +
-  labs(fill = "ATP [TW]") + geom_point(data = test, size = 4) 
-#e <- c(12,  12.5, 13, 13.5)
-#ggplot(pgridL, aes(x = maxCAPE2, y = maxBS2, fill = value)) +
- # geom_raster(show.legend = TRUE) +
- # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
-```
-**Figure 6: Predictions of ATP across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  ** #CORRECT
-
-Table of coefficients.
-```{r}
-x <- summary(model1)
-xtable(x$coefficients, digits = 3)
-```
-**Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)** #CORRECT
 
 Observed versus predicted.
 ```{r}
@@ -1402,57 +1611,8 @@ max: 38
 
 ATP: 
 min: 0.005
-max: 220
+max: 220 #CORRECT
 
-Observed versus prediction plot for ATP.
-```{r}
-# .scresid : standardized conditional residuals
-model1.df <- fortify(model1)
-model1.df$preATP <- exp(predict(model1))
-
-model1.df <- model1.df %>%
-   mutate(density = nT/HullArea)
-
-model1.over <- model1.df %>%
-  filter(.scresid >= 0)
-model1.under <- model1.df %>%
-  filter(.scresid < 0)
-
-model1.over <- model1.over[order(model1.over$GroupDayCas),]
-model1.under <- model1.under[order(model1.under$GroupDayCas),]
-
-ggplot() +
-  geom_point(data = model1.under, aes(x = GroupDayTotalED/10^12, y = preATP/10^12, fill = log10(GroupDayCas + 1)), shape = 21, size = 8, show.legend = FALSE, stroke = 0) +
-      scale_fill_gradient(low = "pink", high = "firebrick3") +
-      geom_point(data = model1.over, aes(x = GroupDayTotalED/10^12, y = preATP/10^12, colour = log10(GroupDayCas + 1)),  size = 8, show.legend = FALSE, stroke = 0.5) +
-        scale_colour_gradient(low = "lightskyblue", high = "blue") +
-      geom_abline(slope = 1, size = 1.25) + 
-      scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
-      scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
-      ylab("Estimated ATP [TW]") + xlab("ATP [TW]") +
-      theme_minimal() + theme(text = element_text(size=15)) 
-```
-**Figure 7: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. ** #CORRECT
-
-```{r}
-p1 <- ggplot(model1.df, aes(x = .scresid)) +
-  geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
-  xlab("Standardized Residual") + ylab("Frequency") +
-  ggtitle("A") +
-  theme_minimal() + theme(text = element_text(size=25))
-
-p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^12, y = .scresid, color = factor(Mo))) +
-         geom_point(size = 5) +
-         scale_x_log10() +
-         scale_color_discrete(name = "Month") +
-  xlab("Predicted ATP [TW]") + ylab("Standardized Residual") +
-  ggtitle("B") +
-  theme_minimal() + theme(text = element_text(size=26))
-grid.arrange(p1, p2, ncol = 2)
-
-#p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
-```
-**Figure 5: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP. ** #CORRECT
 
 Outliers.
 ```{r}
@@ -1475,83 +1635,6 @@ ggplot(plt.BigDays.sfdfT, aes(x = x, y = y)) +
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray70", alpha = .3)
 ```
 
-Create a data frame of the over predicted big days. 
-```{r}
-dates<- c( "2011-04-19", "2014-02-20", "2017-04-03", "2003-04-24")
-overpreddays <- BigDays.sfdfT %>%
-  filter(as.character(cDate) %in% dates)  
-```
-
-**LOOK AT MAJOR OVER- AND UNDER- PREDICTED BIG DAYS: **
-Create a data frame of the under predicted big days. 
-```{r}
-# underdays <- c("2003-05-04", "2008-02-05", "2011-04-27") 
-# underpreddays <- BigDays.sfdfT %>%
-#  filter(cDate %in% overdays)    **Returning nothing
-
-dates <- c("1999-05-03", "2011-04-27", "2011-04-26", "2004-05-22", "2004-11-23")
-underpreddays <- BigDays.sfdfT %>%
-  filter(as.character(cDate) %in% dates) 
-```
-
-Create the convex hulls for the over and under predicted. 
-```{r}
-overpreddays <- st_as_sf(overpreddays)
-overpred <- st_convex_hull(overpreddays)
-overpred <- st_transform(overpreddays, 
-  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-
-underpreddays <- st_as_sf(underpreddays)
-underpred <- st_convex_hull(underpreddays)
-underpred <- st_transform(underpreddays, 
-  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
-```
-
-Map the over vs under predicted big days. Color blue and magenta. 
-```{r}
-stateBorders <- st_transform(stateBorders, 
-                            crs = st_crs(counties.sf))
-overpred <- st_transform(overpred, crs = st_crs(stateBorders))
-underpred <- st_transform(underpred, crs = st_crs(stateBorders))
-
-tm_shape(stateBorders) + 
-  tm_borders(col = "gray70") +
-  tm_compass(position = c("right", "bottom"), size = 5, fontsize = 1.1, color.dark = "gray70") + 
-  tm_scale_bar(position = c("left", "bottom"), width = 0.5, size = 1.4, color.dark = "gray70") +
-  tm_layout(inner.margins = c(.2, .05, .05, .05)) +
-#tm_shape(counties.sf) +
-#  tm_borders(col = "gray50", alpha = .3) +
-tm_shape(overpred) +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "blue") + 
-  tm_fill(col = "blue") +
-tm_shape(underpred, is.master = TRUE, projection = "merc") +
-  tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "firebrick3") +
-  tm_fill(col = "firebrick3")
-```
-**Figure 8: Areas defining the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATP. ** #CORRECT
-
-```{r}
-underden <- underpred %>%
-  mutate(density = nT/HullArea)
-overden <- overpred %>%
-  mutate(density = nT/HullArea)
-
-#Convert from tornado/m2 to tornadoes/km2
-u <- underden$density *10**10
-mean(u)
-o <- overden$density *10**10
-mean(o)
-
-t.test(as.numeric(u),as.numeric(o))
-```
-
-Get the average hull area in units of km^2
-```{r}
-mean(underden$HullArea /10**10) 
-#52.82478 [km^2]
-mean(overden$HullArea /10**10)
-#37.01303 [km^2]
-```
 
 #order them by date 
 
