@@ -321,7 +321,7 @@ BigDays.sfdfT %>%
   group_by(NARRZtime) %>%
   summarize(count = n())
 ```
-**Table 3: Total number of big days associated with each Z time.**
+**Table X: Total number of big days associated with each Z time.** #CORRECT
 
 Create a downloadable string of information for the varying NARR times. 
 ```{r, eval = FALSE}
@@ -713,14 +713,14 @@ tm_shape(May30centroid) +
 
 ```{r, eval = FALSE}
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATE) %>%
-  arrange(desc(ATE))
+  top_n(n = 3, wt = ATP) %>%
+  arrange(desc(ATP))
 
 BigDays.sfdfT %>%
-  top_n(n = 3, wt = -ATE) %>%
-  arrange(desc(ATE))
+  top_n(n = 3, wt = -ATP) %>%
+  arrange(desc(ATP))
 ```
-**Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. **
+**Table 4: The maximum and minimum values associated with each big day. The top 3 rows represent the top three big days sorted by the number of tornadoes. The bottom three rows are the bottom 3 big days by the number of tornadoes. ** #CORRECTED
 
 ```{r}
 BigDays.sfdfT <- BigDays.sfdfT %>%
@@ -936,6 +936,7 @@ Combine into one figure:
 ```{r}
 tmap_arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 ```
+**Figure 4: Environmental conditions at 12 UTC on May 6, 2003. The black line is the spatial extent of the tornado genesis locations and the black triangle is the centroid of the locations. The first tornado in the cluster started at 12:20 UTC. The black square indicates the locations of the highest value of CAPE (3660~J~kg$^{-1}$), the lowest value of CIN ($-$149~J~kg$^{-1}$), the highest value of helicity (308~m$^2$~s$^{-2}$) and the highest value of bulk shear (33~m~s$^{-1}$).** #CORRECTED
 
 Plot the centroid for each group day and size the aesthetic by the number of tornadoes.
 ```{r}
@@ -970,7 +971,7 @@ tm_shape(groupDayCentroids.sfdfT, is.master = TRUE, projection = "merc") +
             legend.frame = FALSE, 
             legend.width = -0.25)
 ``` 
-**Figure 3: Centroids of genesis locations occurring on big days in large groups. The triangles are sized by the number of tornadoes on that day.**
+**Figure 3: Centroids of genesis locations occurring on big days in large groups. The triangles are sized by the number of tornadoes on that day.** #CORRECT
 
 Time series graphs
 ```{r}
@@ -1053,7 +1054,7 @@ tm_shape(counties.sf) +
 tm_shape(stateBorders, is.master = FALSE) +
   tm_borders() 
 ```
-** Figure 5: Big day density by county **
+ Big day density by county 
 
 Number of times each county was within the convex hull of a big tornado day (more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017).
 
@@ -1080,7 +1081,7 @@ ggplot(BigDays.sfdfT, aes(y = Year)) +
   theme(text = element_text(size=30), legend.position = "bottom", legend.background = element_rect(size=0.5, linetype="solid", 
                                   colour ="gray10"))
 ```
-**Accumulated tornado power (ATP) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.**
+Accumulated tornado power (ATP) by day of year on days with more than 10 tornadoes occurring in a multi-day 'outbreak' of at least 30 tornadoes, 1994-2017.
 
 ```{r, eval = FALSE}
 BigDays.sfdfT %>%
@@ -1112,7 +1113,8 @@ BigDays.sfdfT %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
-** Table 5: Seasonal variation in ATP (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. **
+**Table 5: Seasonal variation in ATP (TW), number of tornadoes, and the number of big days by month. The number of tornadoes and the number of big days is based on the period 1994 – 2017. ** #CORRECT
+
 Time series of annual number of big days in large groups and the annual average ATP across those days.
 ```{r}
 BigDays.sfdfT %>%
@@ -1135,7 +1137,7 @@ ggplot(., aes(x = Year, y = nBD)) +
   theme(text = element_text(size=15)) +
   theme(legend.position="bottom")
 ```
-**Figure X: Number of big days by year, 1994 – 2017. Points are sized and colored by annual average ATP.**
+ Number of big days by year, 1994 – 2017. Points are sized and colored by annual average ATP.
 
 How many big days have an ATP > 30 TW? 
 ```{r}
@@ -1371,14 +1373,14 @@ ggplot(pgridL, aes(x = maxCAPE2 * 1000, y = maxBS2 * 10, fill = value)) +
  # geom_raster(show.legend = TRUE) +
  # scale_fill_viridis_c(breaks = log(10^e), labels = c(1, 3.2, 10, 32))
 ```
-**Figure 6: Predictions of ATP across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  **
+**Figure 6: Predictions of ATP across a range of CAPE and bulk shear values holding CIN, helicity, year, and month as constants.  ** #CORRECT
 
 Table of coefficients.
 ```{r}
 x <- summary(model1)
 xtable(x$coefficients, digits = 3)
 ```
-**Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)**
+**Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)** #CORRECT
 
 Observed versus predicted.
 ```{r}
@@ -1430,7 +1432,7 @@ ggplot() +
       ylab("Estimated ATP [TW]") + xlab("ATP [TW]") +
       theme_minimal() + theme(text = element_text(size=15)) 
 ```
-**Figure 7: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. **
+**Figure 7: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. ** #CORRECT
 
 ```{r}
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
@@ -1446,11 +1448,11 @@ p2 <- ggplot(model1.df, aes(x = exp(.fitted)/10^12, y = .scresid, color = factor
   xlab("Predicted ATP [TW]") + ylab("Standardized Residual") +
   ggtitle("B") +
   theme_minimal() + theme(text = element_text(size=26))
-grid.arrange(p1, p2, ncol = 1, widths = 2)
+grid.arrange(p1, p2, ncol = 2)
 
 #p1 + p2 + plot_layout(ncol = 1, widths = c(2, 3))
 ```
-**Figure 5: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP. **
+**Figure 5: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP. ** #CORRECT
 
 Outliers.
 ```{r}
@@ -1526,7 +1528,7 @@ tm_shape(underpred, is.master = TRUE, projection = "merc") +
   tm_polygons(col = NA, lwd = 3, alpha = 0, border.col = "firebrick3") +
   tm_fill(col = "firebrick3")
 ```
-**Figure 8: Areas defining the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATP. **
+**Figure 8: Areas defining the boundary of all tornadoes on big days. Days selected are those where the model most over predicted (blue) and most under predicted (pink) ATP. ** #CORRECT
 
 ```{r}
 underden <- underpred %>%
