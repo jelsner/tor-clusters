@@ -4,7 +4,7 @@ author: "Zoe Schroder/James Elsner"
 date: "7/31/2018"
 output: github_notebook
 editor_options:
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 Research to be submitted to the **International Journal of Climatology**
@@ -42,7 +42,6 @@ Tornadoes pose a significant risk to life and property in the United States. The
 Tornado clusters (`outbreaks') occur generally east of the Rocky Mountains and west of the Appalachian Mountains \citep{Dean2010} during the months of April, May, and June \citep{DixonEtAl2014, TippettEtAl2014,  TippettEtAl2012, Trapp2014, Dean2010, Galway1977}. Outbreaks are largely confined to the Southeast during the late fall and winter months \citep{Dean2010}. The percentage of all U.S.~tornadoes occurring in clusters is on the rise \citep{Moore2017,  TippettEtAl2016, ElsnerElsnerJagger2015, TippettEtAl2014, BrooksEtAl2014}. Why this is happening could be related to changes in environmental factors that influence the amount and intensity of deep convection.
 
 To shed light on this question, here we examine the relationships between collective tornado activity within a cluster and the associated environmental variables. Studies have identified environmental factors important to the development of tornadoes \citep{AndersonFrey2018, ChengEtAl2016,  DeanandSchneider2012, JacksonandBrown2009, DoswellandEvans2003, Brown2002, Craven2002, Brooks1994}. Missing from these studies is a quantification of the relationships between environmental factors and collective tornado activity. Specifically, how much convective available potential energy is needed, for example, to produce a ten percent increase in accumulated tornado power (ATP)?  
-
 The objective here is to quantify the extent to which environmental factors influence ATP. We first identify the biggest days in the largest clusters of tornadoes. To quantify the relationships we regress ATP onto convective available potential energy (CAPE), convective inhibition (CIN), helicity, and bulk shear using tornadoes occurring on these big days. Values for the predictor variables are extracted from reanalysis data. Finally we examine model residuals for goodness of fit.
 
 The paper is outlined as follows. The method to define tornado clusters and the selection criteria for determining the big days within large clusters are described in \S2. Tornado power dissipation is defined and estimated in \S3. The environmental variables are described in \S4 and the statistical relationships between ATP and the environmental variables are modeled and described in \S5. A summary of the paper and a list of conclusions along with ways the study can be improved are given in \S6.
@@ -139,7 +138,7 @@ dst <- ds + dt
 rm(ds, dt)
 ```
 
-Our interest centers on clusters that are not too small (e.g., a family of tornadoes from a single supercell) and not too large (e.g., all tornadoes during a week). So we stop grouping once there are no additional pairs within a $\delta_k$\ of 50K ($\sim$14 space-time hours). This results in 6,156 unique clusters and 155 large (at least 30 tornadoes) clusters. The largest cluster occurred from April 26--28, 2011. It contains 293 tornadoes. Duration of the clusters ranges from 46 one-day clusters to one five-day cluster (Table~\ref{GroupsbyDuration}). Multi-day clusters account for 69.5\% of all our clusters. The cluster with the longest duration occurred from September 4--8, 2004 and contained 103 tornadoes (Fig.~\ref{LargestGroup}). Our clusters match the outbreaks identified subjectively by \cite{Forbes2006} with an agreement rate of 88\%.
+Our interest centers on clusters that are not too small (e.g., a family of tornadoes from a single supercell) and not too large (e.g., all tornadoes during a week). So we stop grouping once there are no additional pairs within a $\delta_k$\ of 50K ($\sim$14 space-time hours). This results in 6,156 unique clusters and 155 large (at least 30 tornadoes) clusters. The largest cluster occurred from April 26--28, 2011. It contains 293 tornadoes. Duration of the clusters ranges from 46 one-day clusters to one five-day cluster (Table~\ref{GroupsbyDuration}). Multi-day clusters account for 70\% of all our clusters. The cluster with the longest duration occurred from September 4--8, 2004 and contained 103 tornadoes (Fig.~\ref{LargestGroup}). Our clusters match the outbreaks identified subjectively by \cite{Forbes2006} with an agreement rate of 88\%.
 
 **Next group the tornadoes based on the space-time distances. This is done with the `hclust()` (hierarchical cluster) function. Initially, each tornado is assigned to its own group and then the algorithm joins the two closest tornadoes determined by values in `dst`. The algorithm continues by joining tornadoes (and tornado groups) until there is a single large group. The single linkage method (`method = "single"`) is related to the minimal spanning tree (MST) and adopts a 'friends of friends' grouping strategy. An edge-weighted graph is a graph where each edge has a weight (or cost). Here weights are space-time distances between tornadoes. A MST of an edge-weighted graph is a spanning tree whose weight (the sum of the weights of its edges) is no larger than the weight of any other spanning tree. A spanning tree of a graph on N vertices (tornado centroids) is a subset of N-1 edges that form a tree (Skiena 1990, p. 227).The `cutree()` function is used to extract a group number for each tornado. Tornadoes in each group are close in space & time. Here the tree is cut at a height of 50000 space-time units. Making `h` smaller results in smaller groups (fewer tornadoes per group).**
 ```{r, eval = FALSE}
@@ -173,8 +172,8 @@ Groups.sfdfT <- All_Tornadoes %>%
             n3 = sum(mag == 3),
             n4 = sum(mag == 4),
             n5 = sum(mag == 5),
-            GroupTotalED = sum(ED),
-            Name2 = paste(round(GroupTotalED/10^12), "TW"),
+            ATP = sum(ED),
+            ATP_TW = paste(round(ATP/10^12), "TW"),
             maxEF = max(mag),
             nD = n_distinct(date),
             StartTime = first(DateTime),
@@ -184,6 +183,16 @@ Groups.sfdfT <- All_Tornadoes %>%
   filter(nT >= 30)
 dim(Groups.sfdfT)
 ```
+
+```{r}
+as.data.frame(Groups.sfdfT) %>%
+  group_by(nD) %>%
+  summarize(tot_events = n(),
+            tot_torn = sum(nT))
+
+(155-46)/155 * 100 
+```
+`Table 1: The total number of large groups and tornadoes by duration.` #CORRECT
 
 **Get the tornadoes that are in the 155 large groups. **
 ```{r, eval = FALSE}
@@ -214,43 +223,6 @@ FPFN <- FPFN[1:8,]
 FPFN
 ```
 
-**Graph of the percent match values between ours and the Forbes 2004. **
-```{r, eval = FALSE}
-# Graph of the percent match values between ours and the Forbes 2004.
-# ggplot(FPFN, aes(x = Cuttree, y = PercentMatch)) + 
-#  geom_line(size = 1.5) +
-#  geom_point(size = 2) +
-#  labs(x = "Space - Time Distance", 
-#   y = "Percent") +
-#  theme_minimal() +
-#  theme(text = element_text(size=25)) +
-#    ggtitle("Relationship between Space-Time Units and Tornado Group Match") + 
-#  theme(plot.title = element_text(hjust = 0.5)) +
-   
-#  scale_x_continuous(breaks = round(seq(min(FPFN$Cuttree), 
- #                                       max(FPFN$Cuttree), 
-  #                                      by = 15000), 1)) + 
-#  ylim(0,100)
-```
-
-**Distribution of the number of days each group lasts.**
-```{r, eval = FALSE}
-dfnD <- as.data.frame(Groups.sfdfT) %>%
-  arrange(desc(nD))
-table(dfnD$nD)
-(151-46)/151 * 100 
-
-dfnD <- as.data.frame(Groups.sfdfT) %>%
-  arrange(desc(Year))
-table(dfnD$Year)
-
-as.data.frame(Groups.sfdfT) %>%
-  group_by(nD) %>%
-  summarize(tot_events = n(),
-            tot_torn = sum(nT))
-```
-`Table 1: The total number of large groups and tornadoes by duration.` #CORRECT
-
 **Map of the longest tornado outbreak. Tornado points colored by cDate. **
 
 ```{r, eval = FALSE}
@@ -276,6 +248,9 @@ longestdaytorns$ID <- factor(longestdaytorns$ID, levels = rev(levels(longestdayt
 ```
 
 ```{r}
+sts <- state.name[!state.name %in% c("Alaska", "Hawaii")]
+stateBorders <- us_states(states = sts)
+
 tm_shape(stateBorders) + 
   tm_borders(col = "gray70") +
   tm_layout(legend.bg.color = "white", legend.text.size = .75) +
@@ -338,7 +313,7 @@ BigDays.sfdfT <- All_Tornadoes %>%
 dim(BigDays.sfdfT)
 ```
 
-With this definition, we find 212 big days within our large clusters. Note that there are sometimes more than one big day in a single large cluster. Also, ten or more tornadoes can occur within smaller clusters, and our set of big days accounts for only 29\% of all days with at least ten tornadoes.  The top two big days (April 26, 2011, and April 27, 2011) are associated with the largest tornado cluster (Table~\ref{BiggestDays}). Note that this set of big days identified and analyzed in this paper is unchanged for values of $s$ (Eq.~\ref{stdiff}) ranging between 8 and 20~m~s$^{-1}$.
+With this definition, we find 212 big days within our large clusters. Note that there are sometimes more than one big day in a single large cluster. Also, ten or more tornadoes can occur within smaller clusters, and our set of big days accounts for only 28.6\% of all days with at least ten tornadoes.  The top two big days (April 26, 2011, and April 27, 2011) are associated with the largest tornado cluster (Table~\ref{BiggestDays}). Note that this set of big days identified and analyzed in this paper is unchanged for values of $s$ (Eq.~\ref{stdiff}) ranging between 8 and 20~m~s$^{-1}$.
 
 **What is the percentage of all big days (>= 10 tornadoes) that occur within a big group? 29% of all big days (>= 10 tornadoes) occur within a big group/outbreak (>= 30 tornadoes)**
 ```{r, eval = FALSE}
@@ -349,7 +324,6 @@ TotalBigDays <- All_Tornadoes %>%
 
 dim(BigDays.sfdfT)[1]/dim(TotalBigDays)[1] * 100
 ```
-
 
 **Create a unique ID for each big day and each tornado. Extract the tornadoes associated with each big day using the unique ID.**
 ```{r, eval = FALSE}
@@ -366,7 +340,7 @@ sum(BigDays.sfdfT$nT)
 
 ```{r, eval = FALSE}
 as.data.frame(BigDays.sfdfT) %>%
-  dplyr::select(cDate, nT, GroupDayCas, ATE) %>%
+  dplyr::select(cDate, nT, GroupDayCas, ATP) %>%
   top_n(n = 10, wt = nT) %>%
   arrange(desc(nT))
 ```
@@ -374,7 +348,7 @@ as.data.frame(BigDays.sfdfT) %>%
 
 Figure~\ref{May30} is an example of a big day in a large cluster. There were 88 tornadoes on that day. The cluster is identified as the eighth most prolific by our method (and the first most prolific by \cite{Forbes2006}) and extended over a two convective day period beginning on May 30th. This is the seventh largest of our big days as defined by the number of tornadoes in any large cluster.
 
-Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.
+**Create a map showing the frequency of big tornado days by county. First transform the CRS of the county boundaries to match the CRS of `BigDays.sfdfT`.**
 ```{r, eval = FALSE}
 counties.sf <- st_transform(counties.sf, 
                             crs = st_crs(BigDays.sfdfT))
@@ -383,7 +357,14 @@ stateBorders <- st_transform(stateBorders,
                             crs = st_crs(BigDays.sfdfT))
 ```
 
-Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. 
+**Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).**
+```{r}
+groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
+groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
+groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
+```
+
+*Extract the Hull, centroids, and tornadoes for the May 30, 2004 big day. *
 
 ```{r, eval = FALSE}
 May30 <- BigDays.sfdfT %>%
@@ -437,13 +418,6 @@ tm_shape(May30centroid) +
 `Figure 2: Tornadoes occurring on May 30, 2004 as part of a big day within a large cluster. Each point represents a genesis location and is colored by the hour it occurred. The black triangle is the geographic center of the genesis locations. The black line is the minimum convex polygon around the genesis locations (convex hull).` #CORRECT
 
 Most big days occur east of the Rockies and west of the Appalachians depicted by the centroids (Fig.~\ref{Centroids}). In particular, there is a group of centroids that spans the middle South extending northwestward toward the central Great Plains. There is also a tendency for days having the most tornadoes to occur farther to the east.
-
-**Extract the geographic centroids of tornado genesis on big tornado days by creating an `sf` object using `st_centroid()` that reduces the MULTIPOINT geometry to a POINT geometry. Compute the area of the group and the number of tornadoes per area (density).**
-```{r}
-groupDayCentroids.sfdfT <- st_centroid(BigDays.sfdfT)
-groupDayCentroids.sfdfT$groupArea <- st_area(st_convex_hull(BigDays.sfdfT))
-groupDayCentroids.sfdfT$groupDensity <- groupDayCentroids.sfdfT$nT/groupDayCentroids.sfdfT$groupArea
-```
 
 **Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.**
 ```{r, eval = FALSE}
@@ -509,7 +483,7 @@ A list of the top ten big days in large clusters by ATP includes the infamous da
 ```{r}
 BigDays.sfdfT %>%
   group_by(Month) %>%
-  summarize(avgATP = mean(ATE),
+  summarize(avgATP = mean(ATP),
             nT = sum(nT),
             nBD = n())
 ```
@@ -528,7 +502,7 @@ cor.test(x = BigDays.sfdfT$ATP,
 
 To quantify the relationship between ATP and environmental factors on big days we obtain environmental variables from the National Center for Environmental Prediction's (NCEP) North American Regional Reanalysis (NARR). The data are available from the National Center for Atmospheric Research (NCAR). Variables from the NARR have been used previously to analyze convective environments \citep{BrooksLeeCraven2003, GensiniandAshley2011, MesingerEtAl2006}. Tornado environments have been studied without NARR using proximity soundings and weather stations \citep{PotvinEtAl2010}. Here we are interested in aggregate tornado activity occurring over a broad spatial scale so the NARR variables are used rather than proximity soundings.
 
-We use the original NARR 3-hourly files containing environmental data for each day ranging from 00~UTC to 21~UTC in 3-hour increments. For each big day, we choose the closest time before the occurrence of the first tornado (Table~\ref{BigDayZtime}). This allows us to capture the environment {\it before} the occurrence of tornadoes. The majority of times selected are after 12 UTC with the peak occurring at 15~UTC.
+We use the original NARR 3-hourly files containing environmental data for each day ranging from 00~UTC to 21~UTC in 3-hour increments. For each big day, we choose the closest time before the occurrence of the first tornado (Table~\ref{BigDayZtime}). This allows us to capture the environment {\it before} the occurrence of tornadoes. The majority of times selected are after 12 UTC with the peak occurring at 12~UTC.
 
 **Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the `xts` package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day. **
 ```{r, eval = FALSE}
@@ -692,16 +666,23 @@ Selected and computed NARR variables are available in the form of a 277 by 349 r
 
 ```{r, eval = FALSE}
 BigDays.sfdfT %>%
-  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATE) %>%
-  top_n(n = 3, wt = ATE) %>%
-  arrange(desc(ATE))
+  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATP) %>%
+  top_n(n = 3, wt = ATP) %>%
+  arrange(desc(ATP))
 
 BigDays.sfdfT %>%
-  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATE) %>%
-  top_n(n = 3, wt = -ATE) %>%
-  arrange(desc(ATE))
+  dplyr::select(cDate, maxCAPE, minCIN, maxHLCY, maxBS, ATP) %>%
+  top_n(n = 3, wt = -ATP) %>%
+  arrange(desc(ATP))
 ```
 `Table 5: Single values for the environmental variables on big days. Big days are separated into top three and bottom three groups based on the value of ATP.` #CORRECTED
+
+Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
+```{r}
+#save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "Climatology.RData")
+load("Climatology.RData")
+dim(BigDays.sfdfT)
+```
 
 #######################################
 ## Plot Environments for May 6, 2003 ##
@@ -919,11 +900,16 @@ p4
 ```{r}
 tmap_arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 ```
-`Figure 4: Environmental conditions at 12 UTC on May 6, 2003. The black line is the spatial extent of the tornado genesis locations and the black triangle is the centroid of the locations. The first tornado in the cluster started at 12:20 UTC. The black square indicates the locations of the highest value of CAPE (3660~J~kg$^{-1}$), the lowest value of CIN ($-$149~J~kg$^{-1}$), the highest value of helicity (308~m$^2$~s$^{-2}$) and the highest value of bulk shear (33~m~s$^{-1}$).`  CHECK THE Z TIME!!!!!
+`Figure 4: Environmental conditions at 12 UTC on May 6, 2003. The black line is the spatial extent of the tornado genesis locations and the black triangle is the centroid of the locations. The first tornado in the cluster started at 14:20 UTC. The black square indicates the locations of the highest value of CAPE (3660~J~kg$^{-1}$), the lowest value of CIN ($-$149~J~kg$^{-1}$), the highest value of helicity (308~m$^2$~s$^{-2}$) and the highest value of bulk shear (33~m~s$^{-1}$).`
 
 ## Quantifying the relationship between ATP and environmental factors
 
 We use our collated data representing 212 big days to regress ATP onto the environmental variables whose values are chosen within the area defined by the tornado cluster as described above. The regression model quantifies the effect of each environmental variable on ATP while holding the other variables constant. Due to the large seasonal variability in ATP (Table~\ref{seasonalATP}), the month of the big day occurrence is included as a random effect (an offset to the intercept term). Environmental variables are considered fixed effects as is the year during which the big day occurred. Year is included as a fixed effect because ATP is increasing over time \citep{ElsnerFrickerSchroder2018}. If year is not included in the model, the increasing trend could confound the influence of the other fixed effects. The coefficient on year is the annual trend.
+
+```{r}
+cor(BigDays.sfdfT$maxBS, BigDays.sfdfT$maxSM)
+```
+
 
 **Test Average vs Max using Models:**
 ```{r}
@@ -998,7 +984,7 @@ $$
 $$
 where the $\beta_{\hbox{Year}}$, $\beta_{\hbox{CAPE}}$, $\beta_{\hbox{Shear}}$ $\beta_{\hbox{Helicity}}$, $\beta_{\hbox{CIN}}$ and $\beta_{\hbox{Month}}$ are the model coefficients. Month is a random effect as mentioned above so $\beta_{\hbox{Month}}$ is a vector of coefficients with one element for each month of the year. To make interpreting the coefficients easier, we divide the values of CAPE and CIN by 1000, helicity by 100, and bulk shear by 10. The coefficients are determined via an interactive maximum likelihood approach with the {\texttt lmer} function from the {\texttt lme4} package for R \citep{BatesEtAl2015}.
 
-The regression model is best in the sense that it has the lowest Akaike Information Criterion (AIC) score, which measures the overall quality (goodness of fit and simplicity) of the model. Due to a large correlation between bulk shear and relative storm motion (0.59) we retain only bulk shear in the model. We determined that interactions between the environmental variables did not improve the model fit based on higher AIC scores when they were included. We also determined that {\it spatially averaged} values for the environmental variables makes the fit worse. The maximum (and minimum) values within the cluster area provide a better representation of the environmental conditions for the tornadoes on each big day because they are less contaminated by mesoscale and synoptic scale features.
+The regression model is best in the sense that it has the lowest Akaike Information Criterion (AIC) score, which measures the overall quality (goodness of fit and simplicity) of the model. Due to a large correlation between bulk shear and relative storm motion (0.55) we retain only bulk shear in the model. We determined that interactions between the environmental variables did not improve the model fit based on higher AIC scores when they were included. We also determined that {\it spatially averaged} values for the environmental variables makes the fit worse. The maximum (and minimum) values within the cluster area provide a better representation of the environmental conditions for the tornadoes on each big day because they are less contaminated by mesoscale and synoptic scale features.
 
 *Table of coefficients.*
 ```{r}
@@ -1007,13 +993,39 @@ xtable(x$coefficients, digits = 3)
 ```
 `Table 6: Coefficient estimates from a regression model of ATP onto year, CAPE, bulk shear, CIN, and helicity using data from n = 212 big days in large groups over the period. The standard error is on the estimate and its t value is the ratio of the estimate to the standard error. The coefficients were determined via an interactive maximum likelihood approach with the lmer function from the lme4 package for R (Bates et al. 2015)` #CORRECT
 
+```{r}
+confint(model1)
+(exp(0.050) - 1) * 100
+```
+
+
 The model has a log-additive structure indicating that the logarithm of ATP is related to the fixed and random effects in an additive way. So the interpretation of the coefficients are given in terms of a percent change per unit change in the effect. The coefficient on the year term ($\beta_{\hbox{Year}}$) indicates an upward trend in per big-day outbreak ATP amounting to 5\% [(2\%, 8\%), 95\% uncertainty interval (UI)] per year holding the environmental variables constant (Table~\ref{CoefTable}). Note that the percent increase is calculated using $(\hbox{e}^{\beta_{Year}} - 1) \times 100\%$. The upward trend is consistent with the results of \cite{ElsnerFrickerSchroder2018} using all tornadoes.
 
-Physically the model coefficients on the environmental variables are reasonable and consistent with expectations given our current understanding of factors that influence tornado activity. Specifically, an increase in ATP is statistically explained by increasing values of CAPE, bulk shear, and helicity and by decreasing values of CIN. Bulk shear has the largest influence on ATP as seen by its corresponding $t$ value. Quantitatively, the coefficient on the CAPE term ($\beta_{\hbox{CAPE}}$) indicates that ATP increases by 29\% [(7\%, 44\%), 95\% UI] for every 1000 J~kg$^{-1}$ increase in CAPE, holding the other variables and year constant. The coefficient on the bulk shear term ($\beta_{\hbox{Shear}}$) indicates that ATP increases by 124\% for every 10 m$^2$~s$^{-2}$ increase in the magnitude of bulk shear. The coefficient on the helicity term ($\beta_{\hbox{Helicity}}$) indicates that ATP increases by 17\% for every 100 m$^{2}$~s$^{-2}$ increase in helicity and the coefficient on the CIN term ($\beta_{\hbox{CIN}}$) indicates that ATP decreases by 9\% for every 1000 J~kg$^{-1}$ increase in CIN, when the other variables are held constant.
-
-The correlation between observed and modeled estimated ATP is a modest 0.33. We compute the conditional standardized residuals \citep{SantosNobre2007} between the actual and estimated values of ATP. The histogram of the residuals is adequately described by a normal distribution and a plot of the residuals as a function of the model estimated values by month shows no apparent pattern (Fig.~\ref{ModelResiduals}) both indicative of an adequate model.
+Physically the model coefficients on the environmental variables are reasonable and consistent with expectations given our current understanding of factors that influence tornado activity. Specifically, an increase in ATP is statistically explained by increasing values of CAPE, bulk shear, and helicity and by decreasing values of CIN. Bulk shear has the largest influence on ATP as seen by its corresponding $t$ value. Quantitatively, the coefficient on the CAPE term ($\beta_{\hbox{CAPE}}$) indicates that ATP increases by 33\% [(7\%, 44\%), 95\% UI] for every 1000 J~kg$^{-1}$ increase in CAPE, holding the other variables and year constant. The coefficient on the bulk shear term ($\beta_{\hbox{Shear}}$) indicates that ATP increases by 125\% for every 10 m$^2$~s$^{-2}$ increase in the magnitude of bulk shear. The coefficient on the helicity term ($\beta_{\hbox{Helicity}}$) indicates that ATP increases by 12\% for every 100 m$^{2}$~s$^{-2}$ increase in helicity and the coefficient on the CIN term ($\beta_{\hbox{CIN}}$) indicates that ATP decreases by 8\% for every 1000 J~kg$^{-1}$ increase in CIN, when the other variables are held constant.
 
 ```{r}
+#CAPE
+(exp(0.283) - 1) * 100
+
+#BS
+(exp(0.812) - 1) * 100
+
+#HLCY
+(exp(0.109) - 1) * 100
+
+#CIN
+(exp(-0.080) - 1) * 100
+```
+
+The correlation between observed and modeled estimated ATP is a modest 0.37. We compute the conditional standardized residuals \citep{SantosNobre2007} between the actual and estimated values of ATP. The histogram of the residuals is adequately described by a normal distribution and a plot of the residuals as a function of the model estimated values by month shows no apparent pattern (Fig.~\ref{ModelResiduals}) both indicative of an adequate model.
+
+```{r}
+model1.df <- fortify(model1)
+model1.df$preATP <- exp(predict(model1))
+
+model1.df <- model1.df %>%
+   mutate(density = nT/HullArea)
+
 p1 <- ggplot(model1.df, aes(x = .scresid)) +
   geom_histogram(binwidth = .5, color = "white", fill = "gray40") +
   xlab("Standardized Residual") + ylab("Frequency") +
@@ -1033,7 +1045,11 @@ grid.arrange(p1, p2, ncol = 2)
 ```
 `Figure 5: Conditional standardized residuals from the linear regression model. (A) Histogram and (B) Residuals as a function of predicted values of ATP.` #CORRECT
 
-We illustrate the model by estimating ATP across a range of CAPE and bulk shear values with CIN and helicity values set to their respective means ($-$200 J~kg$^{-1}$ and 40 m$^2$~s$^{-2}$), with year set 2017, and with month set to April (Figure~\ref{ATEPredictions}). Year is set to 2017 because it is the last year in the dataset and month is set to April because it is the month during which ATP is on average the highest. Estimates show that ATP increases with increasing values of CAPE and bulk shear. With a CAPE of 250~J~kg$^{-1}$ and a bulk shear of 25~m~s$^{-1}$ the model estimates an ATP of 2.82 TW. In comparison, with a CAPE of 3000~J~kg$^{-1}$ and a bulk shear of 15~m~s$^{-1}$ the model estimates an ATP of 2.56 TW. In contrast, with a CAPE of 4000~J~kg$^{-1}$ and a bulk shear of 40~m~s$^{-1}$, the model estimates an ATP of 24.93 TW. We can estimate values of ATP for other values of the predictors.
+```{r}
+cor(model1.df$ATP, model1.df$preATP)
+```
+
+We illustrate the model by estimating ATP across a range of CAPE and bulk shear values with CIN and helicity values set to their respective means ($-$200 J~kg$^{-1}$ and 40 m$^2$~s$^{-2}$), with year set 2017, and with month set to April (Figure~\ref{ATEPredictions}). Year is set to 2017 because it is the last year in the dataset and month is set to April because it is the month during which ATP is on average the highest. Estimates show that ATP increases with increasing values of CAPE and bulk shear. With a CAPE of 250~J~kg$^{-1}$ and a bulk shear of 25~m~s$^{-1}$ the model estimates an ATP of 2.49 TW. In comparison, with a CAPE of 3000~J~kg$^{-1}$ and a bulk shear of 15~m~s$^{-1}$ the model estimates an ATP of 2.40 TW. In contrast, with a CAPE of 4000~J~kg$^{-1}$ and a bulk shear of 40~m~s$^{-1}$, the model estimates an ATP of 24.3 TW. We can estimate values of ATP for other values of the predictors.
 
 
 *Get specific values on the prediction of ATP plot. *
@@ -1100,11 +1116,6 @@ Figure~\ref{ActualvsPredict} shows the actual versus estimated ATP for the 212 b
 Observed versus prediction plot for ATP.
 ```{r}
 # .scresid : standardized conditional residuals
-model1.df <- fortify(model1)
-model1.df$preATP <- exp(predict(model1))
-
-model1.df <- model1.df %>%
-   mutate(density = nT/HullArea)
 
 model1.over <- model1.df %>%
   filter(.scresid >= 0)
@@ -1237,13 +1248,6 @@ Since bulk shear has the largest influence on ATP, long-term changes to it might
 ## Download NARR data: 
 
 
-
-Save `BigDays.sfdfT` so we can work on the models below without needing to run all the code above.
-```{r}
-#save(BigDays.sfdfT, BigDayTornadoes, Groups.sfdfT, GroupTornadoes, All_Tornadoes, file = "Climatology.RData")
-load("Climatology.RData")
-dim(BigDays.sfdfT)
-```
 
 ######################
 ## Group Statistics ##
