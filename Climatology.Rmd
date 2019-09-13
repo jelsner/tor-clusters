@@ -1409,3 +1409,19 @@ test$maxSM2 <- test$maxSM/10
 #save(test, file = "Sensitivity.RData")
 ```
 
+```{r}
+x <- All_Tornadoes %>%
+  mutate(casualty = (fat + inj),
+         ID = paste0(gsub("-", "", cDate), groupNumber))
+sum(x$casualty)
+
+bigday <- x %>%
+  group_by(ID) %>%
+  summarize(nT = n(), 
+            casualty = sum(cas)) %>%
+  filter(nT >= 10)
+
+sum(bigday$casualty)/sum(x$casualty)
+
+```
+
