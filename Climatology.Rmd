@@ -1126,19 +1126,39 @@ model1.over <- model1.over[order(model1.over$GroupDayCas),]
 model1.under <- model1.under[order(model1.under$GroupDayCas),]
 
 ggplot() +
-  geom_point(data = model1.under, 
-             aes(x = GroupDayTotalED/10^12, y = preATP/10^12, fill = log10(GroupDayCas + 1)),  
-            shape = 21, size = 8, show.legend = FALSE, stroke = 0, alpha = 0.8) +
-      scale_fill_gradient(low = "pink", high = "firebrick3") +
   geom_point(data = model1.over, 
-             aes(x = GroupDayTotalED/10^12, y = preATP/10^12, colour = log10(GroupDayCas + 1)), 
-             size = 8, show.legend = FALSE,  stroke = 0, alpha = 0.8) +
-       scale_colour_gradient(low = "lightskyblue", high = "blue") +
-      geom_abline(slope = 1, size = 1.25) + 
-      scale_x_log10(limits = c(1, 300),breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
-      scale_y_log10(limits = c(1, 75), breaks = c(.01, .1, 1, 10, 100, 1000), labels = c(".01", ".1", "1", "10", "100", "1000")) +
-      ylab("Estimated ATP [TW]") + xlab("ATP [TW]") +
-      theme_minimal() + theme(text = element_text(size=15)) 
+             aes(x = GroupDayTotalED/10^12, 
+                 y = preATP/10^12, 
+                 color = log10(GroupDayCas + 1)), 
+             size = 8, 
+             show.legend = FALSE,  
+             stroke = 0, 
+             alpha = 0.8) +
+      scale_colour_gradient(low = "lightskyblue", 
+                             high = "blue") +
+  geom_point(data = model1.under, 
+             aes(x = GroupDayTotalED/10^12, 
+                 y = preATP/10^12, 
+                 fill = log10(GroupDayCas + 1), color = "transparent"),  
+            shape = 21, 
+            size = 8, 
+            show.legend = FALSE , 
+            stroke = 0, 
+            alpha = 0.8, color = "transparent") +
+      scale_fill_gradient2(low = "pink", 
+                          high = "firebrick3") + 
+      geom_abline(slope = 1, 
+                  size = 1.25) + 
+      scale_x_log10(limits = c(1, 300), 
+                    breaks = c(.01, .1, 1, 10, 100, 1000), 
+                    labels = c(".01", ".1", "1", "10", "100", "1000")) +
+      scale_y_log10(limits = c(1, 75), 
+                    breaks = c(.01, .1, 1, 10, 100, 1000), 
+                    labels = c(".01", ".1", "1", "10", "100", "1000")) +
+      ylab("Estimated ATP [TW]") + 
+      xlab("ATP [TW]") +
+      theme_minimal() + 
+      theme(text = element_text(size=15)) 
 ```
 `Figure 7: Actual versus predicted accumulated tornado power (ATP) for the n = 212 big tornado days. The predicted are based on the regression model (Eq. 3). The color shading from dark to light indicates an increasing number of casualties. `
 
@@ -1200,7 +1220,7 @@ tm_shape(underpred, is.master = TRUE, projection = "merc") +
 
 The average number of tornadoes per unit area during big days that are most under-estimated is 2.3 per square kilometer compared to 1.6 per square meter during big days that are most over-estimated. The average area of the under-estimated days is 52.8 square kilometers compared to 37.0 square kilometers for over-estimated days. This implies that the model might be improved by including environmental factors that explain the localized efficiency of tornado production.
 
-```{r}`
+```{r}
 underden <- underpred %>%
   mutate(density = nT/HullArea)
 overden <- overpred %>%
@@ -1239,3 +1259,153 @@ The major conclusions are:
 \end{itemize}
 
 Since bulk shear has the largest influence on ATP, long-term changes to it might help explain the documented changes in tornado activity. The correlation between ATP and model estimated ATP is a modest 0.33, but this level of correspondence indicates some practical value to the approach (see \cite{CohenEtAl2018}). Results from this study are limited by sample size (we only had 212 big days) and by an exclusive focus on the last 20 years of a much longer tornado record. They are also limited by the quality of the NARR data, which tends to unrealistically favor environments for tornadoes in certain convective setups \citep{GensiniandAshley2011, GensiniEtAl2014, AllenEtAl2015}. The study could be improved by considering more cases from earlier years. The cost of including earlier data would be more uncertainty on the estimates of power dissipation. The study can almost certainly be improved by including other environmental factors in the model, especially ones that are related to the convective mode and to the efficiency of tornado production. Future work will examine the spatial variation in the factors affecting cluster severity and will quantify the relationship between cluster aggregated casualties and the environmental factors controlling for how many people were within the `outbreak' area.
+
+
+```{r}
+test <- BigDays.sfdfT %>% mutate(MiddleTime = as.POSIXct((as.numeric(EndTime_UTC) + as.numeric(StartTime_UTC)) / 2, origin = '1970-01-01') + (3600 * 2))
+```
+
+**Round the UTC time to nearest 6 hours. This is done with the `align.time()` function from the `xts` package. Adjust it by 3 hours to get the closest time. This falls within the outbreak so you need to subtract by 3 hours (10800 seconds). This will produce the closest 3 hour NARR time that occurs before and not within the big day.**
+```{r}
+test$MiddleTime <- force_tz(test$MiddleTime, tzone = "UTC")
+test$midNARRtime <- (align.time(test$MiddleTime, n = (60 * 60 * 3)) - 3600 * 3)
+```
+
+**Split the NARR date and time into their individual variables. Then bind the columns for BigDays.sfdfT. NOTE: cannot do a mutate because 00Z produces NAs.**
+```{r, eval = FALSE}
+midNARRday = format(as.POSIXct(strptime(test$midNARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%Y/%m/%d")
+midNARRZtime = format(as.POSIXct(strptime(test$midNARRtime,"%Y-%m-%d %H:%M:%S",tz="")) ,format = "%H")
+
+test <- cbind(test, midNARRday, midNARRZtime)
+```
+
+**Create a downloadable string of information for the varying NARR times. **
+```{r, eval = FALSE}
+test <- test %>%
+  mutate(YrMoDa = gsub("/", "", midNARRday),
+         slug = paste0("merged_AWIP32.",YrMoDa, midNARRZtime),
+         slug2 = paste0("merged_AWIP32.",YrMoDa))
+```
+
+**Obtain the group day hulls. Transform the CRS to match that of the environmental data raster grids.**
+```{r, eval = FALSE}
+test <- st_convex_hull(test)
+test$HullArea <- st_area(test)
+test <- st_transform(test, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+**Get the centroid (central point of the tornado activity) for each big day. **
+```{r, eval = FALSE}
+BigDayCentroids.df <- st_centroid(test)
+BigDayCentroids.df$groupArea <- st_area(st_convex_hull(test))
+BigDayCentroids.df$groupDensity <- BigDayCentroids.df$nT/BigDayCentroids.df$groupArea
+```
+
+**Data is downloaded from NCAR's North American Regional Reanalysis (https://rda.ucar.edu/datasets/ds608.0/#!access). It extends from 1-1-1979 to 11-1-2018. Use the NCAR NARR 3-hourly files.Spatial Extent: Longitude Range: Westernmost = 148.64E Easternmost = 2.568W; Latitude Range: Southernmost = 0.897N Northernmost = 85.333N**
+
+```{r, eval = FALSE}
+test<- st_transform(test, 
+  crs = "+proj=lcc +lat_1=50 +lat_2=50 +lat_0=50 +lon_0=-107 +x_0=0 +y_0=0 +a=6371200 +b=6371200 +units=m +no_defs")
+```
+
+**The list of all variables can be found here: http://www.emc.ncep.noaa.gov/mmb/rreanl/merged_land_AWIP32.pdf **
+
+```{r, eval = FALSE}
+slug <- test$slug
+slug2 <- test$slug2
+```
+
+**Read the grib files as raster bricks and assign the CAPE and helicity variables to separate raster layers. Extract the average (and extreme) environmental values within each of the big days in large groups hulls.**
+```{r, eval = FALSE}
+avgCAPE <- numeric()
+avgHLCY <- numeric()
+avgCIN <- numeric()
+avgUSTM <- numeric()
+avgVSTM <- numeric()
+avgBS <- numeric()
+avgSM <- numeric()
+avgRATIO <- numeric()
+maxCAPE <- numeric()
+maxHLCY <- numeric()
+minCIN <- numeric()
+maxUSTM <- numeric()
+maxVSTM <- numeric()
+maxBS <- numeric()
+maxSM <- numeric()
+ 
+for(i in 1:length(slug)){ #1:length(slug)
+  print(i)
+  rb <- brick(paste0("/Volumes/Zoe's Work/NCARNARR/All/", test$slug2[i], "/", test$slug[i])) #<-- this is for varying NARR times
+  CAPE <- raster(rb, layer = 375)
+  HLCY <- raster(rb, layer = 323)
+  CIN <- raster(rb, layer = 376)
+  USTM <- raster(rb, layer = 324)
+  VSTM <- raster(rb, layer = 325)
+  UGRD500 <- raster(rb, layer = 117) 
+  VGRD500 <- raster(rb, layer = 118) 
+  UGRDsfc <- raster(rb, layer = 293) 
+  VGRDsfc <- raster(rb, layer = 294)     
+  SM <- sqrt(USTM^2 + VSTM^2)
+  RATIO <- CAPE/abs(CIN)
+  BS <- sqrt(((UGRD500 - UGRDsfc)**2) + ((VGRD500 - VGRDsfc)**2))
+  avgCAPE <- c(avgCAPE, as.numeric(raster::extract(CAPE, test[i, ], fun = mean)))
+  avgHLCY <- c(avgHLCY, as.numeric(raster::extract(HLCY, test[i, ], fun = mean)))
+  avgCIN <- c(avgCIN, as.numeric(raster::extract(CIN, test[i, ], fun = mean)))
+  avgUSTM <- c(avgUSTM, as.numeric(raster::extract(USTM, test[i, ], fun = mean)))
+  avgVSTM <- c(avgVSTM, as.numeric(raster::extract(VSTM, test[i, ], fun = mean)))
+  avgSM <- c(avgSM, as.numeric(raster::extract(SM, test[i, ], fun = mean)))
+  avgRATIO <- c(avgRATIO, as.numeric(raster::extract(RATIO, test[i, ], fun = mean)))
+  avgBS <- c(avgBS, as.numeric(raster::extract(BS, test[i, ], fun = mean)))
+  maxCAPE <- c(maxCAPE, as.numeric(raster::extract(CAPE, test[i, ], fun = max)))
+  maxHLCY <- c(maxHLCY, as.numeric(raster::extract(HLCY, test[i, ], fun = max)))
+  minCIN <- c(minCIN, as.numeric(raster::extract(CIN, test[i, ], fun = min)))
+  maxUSTM <- c(maxUSTM, as.numeric(raster::extract(USTM, test[i, ], fun = max)))
+  maxVSTM <- c(maxVSTM, as.numeric(raster::extract(VSTM, test[i, ], fun = max)))
+  maxSM <- c(maxSM, as.numeric(raster::extract(SM, test[i, ], fun = max)))
+  maxBS <- c(maxBS, as.numeric(raster::extract(BS, test[i, ], fun = max)))
+}
+```
+
+**Add environmental data values to the group day means data frame.**
+```{r, eval = FALSE}
+test$avgCAPE <- avgCAPE
+test$avgHLCY <- avgHLCY
+test$avgCIN <- avgCIN
+test$avgUSTM <- avgUSTM
+test$avgVSTM <- avgVSTM
+test$avgBS <- avgBS
+test$avgRATIO <- avgRATIO
+test$avgSM <- avgSM
+test$maxCAPE <- maxCAPE
+test$maxHLCY <- maxHLCY
+test$minCIN <- minCIN
+test$maxUSTM <- maxUSTM
+test$maxVSTM <- maxVSTM
+test$maxBS <- maxBS
+test$maxSM <- maxSM
+```
+
+**Scale the variables to make them easier to read and input for models. **
+```{r, eval = FALSE}
+test$avgCAPE2 <- test$avgCAPE/1000
+test$avgHLCY2 <- test$avgHLCY/100
+test$avgCIN2 <- test$avgCIN/100
+test$avgBS2 <- test$avgBS/10
+test$avgUSTM2 <- test$avgUSTM/10
+test$avgVSTM2 <- test$avgVSTM/10
+test$avgSM2 <- test$avgSM/10
+
+test$maxCAPE2 <- test$maxCAPE/1000
+test$maxHLCY2 <- test$maxHLCY/100
+test$minCIN2 <- test$minCIN/100
+test$maxBS2 <- test$maxBS/10
+test$maxUSTM2 <- test$maxUSTM/10
+test$maxVSTM2 <- test$maxVSTM/10
+test$maxSM2 <- test$maxSM/10
+```
+
+```{r}
+#save(test, file = "Sensitivity.RData")
+```
+
